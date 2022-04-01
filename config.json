@@ -1,0 +1,63 @@
+{
+    "vps": {
+        "domain": "badaniesatysfakcjiklientow.de",
+        "server": "server.badaniesatysfakcjiklientow.de",
+        "pass": "T3D7eQFRNL3EBw"
+    },
+    "ubuntu": {
+        "user": "dba",
+        "pass": "iXVSeenxqaZqE5"
+    },
+    "postgres":[
+        {
+            "user": "DBA",
+            "pass": "Bb23b39DDiNa9f"
+        },
+        {
+            "user": "postgres",
+            "pass": "K6dh44w8K3D7DQ"
+        }
+    ],
+    "mockaroo": {
+        "interviewees": {
+            "count": 200,
+            "email": "100%",
+            "first_name": "50%",
+            "last_name": "50%" 
+        },
+        "surveys": {
+            "count": 10,
+            "description": "60%",
+            "starts_at": "20%",
+            "expires_at": "20%",
+            "accept_answers": "70%"
+        },
+        "questions": {
+            "count": 70,
+            "precondition": "10%",
+            "expected_value": "10%"
+        },
+        "answers": {
+
+        },
+        "creators": {
+
+        },
+        "options": {
+
+        },
+        "question_tables": {
+
+        },
+        "question_sections": {
+
+        },
+        "creators_interviewees": {
+
+        },
+        "survey_submissions": {
+
+        }
+    }
+}
+

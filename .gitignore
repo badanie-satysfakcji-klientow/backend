@@ -1,0 +1,34 @@
+*/config.json
+*/.env
+
+#.vscode # to zostawiłem żeby każdy miał taki sam config ale jak będą jakieś problemy to trzeba odkomentować
+
+
+# angular
+/dist
+/tmp
+/out-tsc
+/.sass-cache
+
+#dependencies
+*/node_modules/
+
+# django
+*.py[cod]
+*.pyc
+*.pyo
+__pycache__
+*.log
+*.pot
+*.installed.cfg
+
+# misc
+/coverage
+npm-debug.log
+yarn-error.log
+/typings
+
+# System files
+.DS_Store
+Thumbs.db
+
