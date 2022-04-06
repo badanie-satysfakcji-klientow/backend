@@ -21,6 +21,7 @@ __pycache__
 *.log
 *.pot
 *.installed.cfg
+config.json
 
 # misc
 /coverage
