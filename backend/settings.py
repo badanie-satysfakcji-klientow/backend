@@ -91,7 +91,10 @@ DATABASES = {
         'PASSWORD': 'K6dh44w8K3D7DQ',
         'HOST': '5.182.207.73',
         'PORT': '5432',
-    }
+        'OPTIONS': {
+            'options': '-c search_path=badanie-satysfakcji-klientow'
+        }
+    },
 }
 
 

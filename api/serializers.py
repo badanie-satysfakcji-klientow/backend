@@ -1,8 +1,9 @@
 from rest_framework import serializers
-from .models import Survey
+from .models import Answers, Creators, CreatorsInterviewees, Interviewees, Items, Options, OptionsItems,\
+    Questions, Sections, SurveySent, SurveySubmissions, Surveys, SurveysItems #, Preconditions
 
 
-# class SurveySerializer(serializers.ModelSerializer):
-#     class Meta:
-#         model = Survey
-#         fields = '__all__'
+class SurveysSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Surveys
+        fields = '__all__'
