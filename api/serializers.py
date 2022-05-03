@@ -1,9 +1,39 @@
 from rest_framework import serializers
-from .models import Answers, Creators, CreatorsInterviewees, Interviewees, Items, Options, OptionsItems,\
-    Questions, Sections, SurveySent, SurveySubmissions, Surveys, SurveysItems #, Preconditions
+from .models import Answer, Creator, \
+    Interviewee, Item, Option, Precondition, Question, Section, SurveySent, SurveySubmission, Survey
 
 
-class SurveysSerializer(serializers.ModelSerializer):
+class SurveySerializer(serializers.ModelSerializer):
     class Meta:
-        model = Surveys
+        model = Survey
+        fields = ['id', 'title', 'description', 'items', 'preconditions']
+
+
+class ItemSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Item
+        fields = ['id', 'survey_id', 'section', 'header', 'questions']
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = '__all__'
+
+
+class AnswerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Answer
+        fields = '__all__'
+
+
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = '__all__'
+
+
+class PreconditionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Precondition
         fields = '__all__'
