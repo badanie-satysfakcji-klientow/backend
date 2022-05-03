@@ -8,20 +8,26 @@
 from django.db import models
 
 
-class Answers(models.Model):
+class Option(models.Model):
     id = models.UUIDField(primary_key=True)
-    question = models.ForeignKey('Questions', models.DO_NOTHING)
-    content_numeric = models.IntegerField(blank=True, null=True)
-    content_character = models.TextField(blank=True, null=True)
-    option = models.ForeignKey('Options', models.DO_NOTHING, blank=True, null=True)
-    submission = models.ForeignKey('SurveySubmissions', models.DO_NOTHING)
+    content = models.TextField()
 
     class Meta:
         managed = False
-        db_table = 'answers'
+        db_table = 'options'
 
 
-class Creators(models.Model):
+class Section(models.Model):
+    id = models.UUIDField(primary_key=True)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'sections'
+
+
+class Creator(models.Model):
     id = models.UUIDField(primary_key=True)
     email = models.CharField(max_length=320)
     password = models.CharField(max_length=255)
@@ -32,115 +38,11 @@ class Creators(models.Model):
         db_table = 'creators'
 
 
-class CreatorsInterviewees(models.Model):
-    creator = models.ForeignKey(Creators, models.DO_NOTHING)
-    interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'creators_interviewees'
-
-
-class Interviewees(models.Model):
-    id = models.UUIDField(primary_key=True)
-    email = models.CharField(max_length=320)
-    first_name = models.CharField(max_length=63, blank=True, null=True)
-    last_name = models.CharField(max_length=63, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'interviewees'
-
-
-class Items(models.Model):
-    id = models.UUIDField(primary_key=True)
-    survey_id = models.UUIDField()
-    section = models.ForeignKey('Sections', models.DO_NOTHING, blank=True, null=True)
-    header = models.CharField(max_length=255, blank=True, null=True)
-    type = models.SmallIntegerField(blank=True, null=True)
-    required = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'items'
-
-
-class Options(models.Model):
-    id = models.UUIDField(primary_key=True)
-    content = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'options'
-
-
-class OptionsItems(models.Model):
-    option = models.ForeignKey(Options, models.DO_NOTHING)
-    item = models.ForeignKey(Items, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'options_items'
-
-
-# class Preconditions(models.Model):
-#     id = models.UUIDField(primary_key=True)
-#     item = models.ForeignKey(Items, models.DO_NOTHING)
-#     expected_option = models.ForeignKey(Options, models.DO_NOTHING)
-#     next_item = models.ForeignKey(Items, models.DO_NOTHING)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'preconditions'
-
-
-class Questions(models.Model):
-    id = models.UUIDField(primary_key=True)
-    order = models.IntegerField()
-    item = models.ForeignKey(Items, models.DO_NOTHING)
-    value = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'questions'
-
-
-class Sections(models.Model):
-    id = models.UUIDField(primary_key=True)
-    title = models.CharField(max_length=255, blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'sections'
-
-
-class SurveySent(models.Model):
-    id = models.UUIDField(primary_key=True)
-    survey = models.ForeignKey('Surveys', models.DO_NOTHING)
-    interviewee_id = models.UUIDField()
-
-    class Meta:
-        managed = False
-        db_table = 'survey_sent'
-
-
-class SurveySubmissions(models.Model):
-    id = models.UUIDField(primary_key=True)
-    submitted_at = models.DateTimeField()
-    survey = models.ForeignKey('Surveys', models.DO_NOTHING)
-    interviewee = models.ForeignKey(Interviewees, models.DO_NOTHING, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'survey_submissions'
-
-
-class Surveys(models.Model):
+class Survey(models.Model):
     id = models.UUIDField(primary_key=True)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    creator = models.ForeignKey(Creators, models.DO_NOTHING)
+    creator = models.ForeignKey(Creator, models.DO_NOTHING)
     created_at = models.DateTimeField()
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
@@ -154,10 +56,108 @@ class Surveys(models.Model):
         db_table = 'surveys'
 
 
-class SurveysItems(models.Model):
-    survey = models.ForeignKey(Surveys, models.DO_NOTHING)
-    item = models.ForeignKey(Items, models.DO_NOTHING)
+class Item(models.Model):
+    id = models.UUIDField(primary_key=True)
+    survey_id = models.ForeignKey(Survey, related_name='items', on_delete=models.DO_NOTHING)
+    section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
+    header = models.CharField(max_length=255, blank=True, null=True)
+    type = models.SmallIntegerField(blank=True, null=True)
+    required = models.BooleanField()
 
     class Meta:
         managed = False
-        db_table = 'surveys_items'
+        db_table = 'items'
+
+
+class Question(models.Model):
+    id = models.UUIDField(primary_key=True)
+    order = models.IntegerField()
+    item = models.ForeignKey(Item, related_name='questions', on_delete=models.DO_NOTHING)
+    value = models.TextField()
+
+    class Meta:
+        managed = False
+        db_table = 'questions'
+
+
+class Answer(models.Model):
+    id = models.UUIDField(primary_key=True)
+    question = models.ForeignKey(Question, models.DO_NOTHING)
+    content_numeric = models.IntegerField(blank=True, null=True)
+    content_character = models.TextField(blank=True, null=True)
+    option = models.ForeignKey(Option, models.DO_NOTHING, blank=True, null=True)
+    # submission = models.ForeignKey('SurveySubmission', models.DO_NOTHING)
+
+    class Meta:
+        managed = False
+        db_table = 'answers'
+
+
+# class CreatorsInterviewees(models.Model):
+#     creator = models.ForeignKey(Creators, models.DO_NOTHING)
+#     interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
+#
+#     class Meta:
+#         managed = False
+#         db_table = 'creators_interviewees'
+
+
+class Interviewee(models.Model):
+    id = models.UUIDField(primary_key=True)
+    email = models.CharField(max_length=320)
+    first_name = models.CharField(max_length=63, blank=True, null=True)
+    last_name = models.CharField(max_length=63, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'interviewees'
+
+
+# class OptionsItems(models.Model):
+#     option = models.ForeignKey(Options, models.DO_NOTHING)
+#     item = models.ForeignKey(Items, models.DO_NOTHING)
+#
+#     class Meta:
+#         managed = False
+#         db_table = 'options_items'
+
+
+class Precondition(models.Model):
+    id = models.UUIDField(primary_key=True)
+    item = models.ForeignKey(Item, models.DO_NOTHING, related_name='preconditions')
+    expected_option = models.ForeignKey(Option, models.DO_NOTHING)
+    next_item = models.ForeignKey(Item, models.DO_NOTHING, related_name='preconditions_next')
+
+    class Meta:
+        managed = False
+        db_table = 'preconditions'
+
+
+class SurveySent(models.Model):
+    id = models.UUIDField(primary_key=True)
+    survey = models.ForeignKey(Survey, models.DO_NOTHING)
+    interviewee_id = models.UUIDField()
+
+    class Meta:
+        managed = False
+        db_table = 'survey_sent'
+
+
+class SurveySubmission(models.Model):
+    id = models.UUIDField(primary_key=True)
+    submitted_at = models.DateTimeField()
+    survey = models.ForeignKey(Survey, models.DO_NOTHING)
+    interviewee = models.ForeignKey(Interviewee, models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        managed = False
+        db_table = 'survey_submissions'
+
+
+#   class SurveyItem(models.Model):
+#     survey = models.ForeignKey(Surveys, models.DO_NOTHING)
+#     item = models.ForeignKey(Items, models.DO_NOTHING)
+#
+#     class Meta:
+#         managed = False
+#         db_table = 'surveys_items'
