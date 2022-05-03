@@ -1,26 +1,70 @@
 from django.shortcuts import render
 from rest_framework import status
+from rest_framework.views import APIView
 from rest_framework.response import Response
-from rest_framework.decorators import api_view
-from .serializers import SurveysSerializer
-from .models import Surveys
-
-# Create your views here.
+from .serializers import SurveySerializer
+from .models import Survey, Question, Answer, Item, Section
 
 
-@api_view(['GET', 'POST'])
-def survey_list(request):
-    """
-    List all surveys or create a new survey.
-    """
-    if request.method == 'GET':
-        surveys = Surveys.objects.all()
-        serializer = SurveysSerializer(surveys, many=True)
+class SurveysList(APIView):
+    def get(self, request):
+        surveys = Survey.objects.all()
+        serializer = SurveySerializer(surveys, many=True)
         return Response(serializer.data)
 
-    elif request.method == 'POST':
-        serializer = SurveysSerializer(data=request.data)
+    def post(self, request):
+        serializer = SurveySerializer(data=request.data)
         if serializer.is_valid():
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class SurveyDetail(APIView):
+    def get(self, request, pk):
+        """
+        # get survey by its id
+        """
+        survey = Survey.objects.get(pk=pk)
+        serializer = SurveySerializer(survey)
+        return Response(serializer.data)
+
+    def put(self, request, pk):
+        """
+        # update survey by its id
+        """
+        survey = Survey.objects.get(pk=pk)
+        serializer = SurveySerializer(survey, data=request.data)
+        if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+    def post(self, request, pk):
+        """
+        # save survey answer by its id
+        """
+        survey = Survey.objects.get(pk=pk)
+        survey.answers.append(request.data)
+        survey.save()
+        return Response(status=status.HTTP_201_CREATED)
+
+
+class SurveyResults:
+    def get(self, request, pk):
+        """
+        # get survey results by its id
+        """
+        survey = Survey.objects.get(pk=pk)
+        serializer = SurveySerializer(survey)
+        return Response(serializer.data)
+
+
+class SendSurvey:
+    def post(self, request):
+        """
+        # send survey by its id
+        """
+        survey = Survey.objects.get(pk=request.data['id'])
+        survey.send()
+        return Response(status=status.HTTP_201_CREATED)
