@@ -3,7 +3,7 @@ from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from .serializers import SurveySerializer
-from .models import Survey, Question, Answer, Item, Section
+from .models import Survey
 
 
 class SurveysList(APIView):
@@ -50,7 +50,7 @@ class SurveyDetail(APIView):
         return Response(status=status.HTTP_201_CREATED)
 
 
-class SurveyResults:
+class SurveyResults(APIView):
     def get(self, request, pk):
         """
         # get survey results by its id
@@ -60,7 +60,7 @@ class SurveyResults:
         return Response(serializer.data)
 
 
-class SendSurvey:
+class SendSurvey(APIView):
     def post(self, request):
         """
         # send survey by its id

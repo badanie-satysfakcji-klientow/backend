@@ -29,7 +29,7 @@ class Section(models.Model):
 
 class Creator(models.Model):
     id = models.UUIDField(primary_key=True)
-    email = models.CharField(max_length=320)
+    email = models.EmailField(max_length=320, unique=True)
     password = models.CharField(max_length=255)
     phone = models.CharField(max_length=18, blank=True, null=True)
 
@@ -58,7 +58,7 @@ class Survey(models.Model):
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True)
-    survey_id = models.ForeignKey(Survey, related_name='items', on_delete=models.DO_NOTHING)
+    survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING)
     section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
     header = models.CharField(max_length=255, blank=True, null=True)
     type = models.SmallIntegerField(blank=True, null=True)
@@ -113,24 +113,13 @@ class Interviewee(models.Model):
         db_table = 'interviewees'
 
 
-# class OptionsItems(models.Model):
-#     option = models.ForeignKey(Options, models.DO_NOTHING)
-#     item = models.ForeignKey(Items, models.DO_NOTHING)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'options_items'
-
-
-class Precondition(models.Model):
-    id = models.UUIDField(primary_key=True)
-    item = models.ForeignKey(Item, models.DO_NOTHING, related_name='preconditions')
-    expected_option = models.ForeignKey(Option, models.DO_NOTHING)
-    next_item = models.ForeignKey(Item, models.DO_NOTHING, related_name='preconditions_next')
+class OptionItem(models.Model):
+    option = models.ForeignKey(Option, models.DO_NOTHING)
+    item = models.ForeignKey(Item, models.DO_NOTHING)
 
     class Meta:
         managed = False
-        db_table = 'preconditions'
+        db_table = 'options_items'
 
 
 class SurveySent(models.Model):
@@ -141,6 +130,17 @@ class SurveySent(models.Model):
     class Meta:
         managed = False
         db_table = 'survey_sent'
+
+
+class Precondition(models.Model):
+    id = models.UUIDField(primary_key=True)
+    item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions')
+    expected_option = models.ForeignKey(Option, models.DO_NOTHING)
+    next_item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions_next')
+
+    class Meta:
+        managed = False
+        db_table = 'preconditions'
 
 
 class SurveySubmission(models.Model):

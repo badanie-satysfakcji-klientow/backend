@@ -3,5 +3,5 @@ from . import views
 
 
 urlpatterns = [
-    path('surveys', views.survey_list),
+    path('api/v1/surveys', views.SurveysList.as_view()),
 ]
