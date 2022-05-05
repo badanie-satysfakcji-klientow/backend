@@ -40,11 +40,10 @@ class ItemSerializer(serializers.ModelSerializer):
         questions = Question.objects.filter(item_id=instance.id)
         questions_serializer = QuestionSerializer(questions, many=True)
         ret['questions'] = questions_serializer.data
-
-        option_ids = OptionItem.objects.filter(item_id=instance.id).values('option_id')
+        option_ids = OptionItem.objects.filter(item_id=instance.id).values_list('option_id')
 
         if len(option_ids) > 0:
-            options = Option.objects.filter(id__in=option_ids).values_list('content')
+            options = Option.objects.filter(id__in=option_ids)
             options_serializer = OptionSerializer(options, many=True)
             ret['options'] = options_serializer.data
 

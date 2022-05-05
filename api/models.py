@@ -43,7 +43,7 @@ class Survey(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    creator = models.ForeignKey(Creator, models.DO_NOTHING, db_column='creator_id')
+    creator_id = models.ForeignKey(Creator, models.DO_NOTHING, db_column='creator_id')
     created_at = models.DateTimeField()
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
