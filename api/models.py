@@ -6,11 +6,12 @@
 #   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
 # Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
+import uuid
 
 
 class Option(models.Model):
-    id = models.UUIDField(primary_key=True)
-    content = models.TextField()
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    content = models.TextField(blank=True, null=True)
 
     class Meta:
         managed = False
@@ -18,7 +19,7 @@ class Option(models.Model):
 
 
 class Section(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
 
@@ -28,7 +29,7 @@ class Section(models.Model):
 
 
 class Creator(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     email = models.EmailField(max_length=320, unique=True)
     password = models.CharField(max_length=255)
     phone = models.CharField(max_length=18, blank=True, null=True)
@@ -39,10 +40,10 @@ class Creator(models.Model):
 
 
 class Survey(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    creator = models.ForeignKey(Creator, models.DO_NOTHING)
+    creator = models.ForeignKey(Creator, models.DO_NOTHING, db_column='creator_id')
     created_at = models.DateTimeField()
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
@@ -57,8 +58,8 @@ class Survey(models.Model):
 
 
 class Item(models.Model):
-    id = models.UUIDField(primary_key=True)
-    survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING, db_column='survey_id')
     section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
     header = models.CharField(max_length=255, blank=True, null=True)
     type = models.SmallIntegerField(blank=True, null=True)
@@ -70,7 +71,7 @@ class Item(models.Model):
 
 
 class Question(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     order = models.IntegerField()
     item = models.ForeignKey(Item, related_name='questions', on_delete=models.DO_NOTHING)
     value = models.TextField()
@@ -81,7 +82,7 @@ class Question(models.Model):
 
 
 class Answer(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     question = models.ForeignKey(Question, models.DO_NOTHING)
     content_numeric = models.IntegerField(blank=True, null=True)
     content_character = models.TextField(blank=True, null=True)
@@ -103,7 +104,7 @@ class Answer(models.Model):
 
 
 class Interviewee(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     email = models.CharField(max_length=320)
     first_name = models.CharField(max_length=63, blank=True, null=True)
     last_name = models.CharField(max_length=63, blank=True, null=True)
@@ -123,7 +124,7 @@ class OptionItem(models.Model):
 
 
 class SurveySent(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
     interviewee_id = models.UUIDField()
 
@@ -133,7 +134,7 @@ class SurveySent(models.Model):
 
 
 class Precondition(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions')
     expected_option = models.ForeignKey(Option, models.DO_NOTHING)
     next_item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions_next')
@@ -144,7 +145,7 @@ class Precondition(models.Model):
 
 
 class SurveySubmission(models.Model):
-    id = models.UUIDField(primary_key=True)
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     submitted_at = models.DateTimeField()
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
     interviewee = models.ForeignKey(Interviewee, models.DO_NOTHING, blank=True, null=True)

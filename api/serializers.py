@@ -7,8 +7,7 @@ from .models import Answer, Creator, \
 class SurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
-        fields = ('id',
-                  'title',
+        fields = ('title',
                   'description',
                   'creator_id',
                   'created_at',
@@ -23,11 +22,6 @@ class SurveySerializer(serializers.ModelSerializer):
         ret = super(SurveySerializer, self).to_representation(instance)
 
         # extra fields
-
-        items = Item.objects.all()
-        items_serializer = ItemSerializer(items, many=True)
-        ret['items'] = items_serializer.data
-
         sections = Section.objects.all()
         sections_serializer = SectionSerializer(sections, many=True)
         ret['sections'] = sections_serializer.data
@@ -48,8 +42,11 @@ class ItemSerializer(serializers.ModelSerializer):
         ret['questions'] = questions_serializer.data
 
         option_ids = OptionItem.objects.filter(item_id=instance.id).values('option_id')
-        optionsitems_serializer = OptionItemSerializer(option_ids, many=True)
-        ret['options'] = optionsitems_serializer.data
+
+        if len(option_ids) > 0:
+            options = Option.objects.filter(id__in=option_ids).values_list('content')
+            options_serializer = OptionSerializer(options, many=True)
+            ret['options'] = options_serializer.data
 
         preconditions = Precondition.objects.filter(item_id=instance.id)
         preconditions_serializer = PreconditionSerializer(preconditions, many=True)
@@ -68,7 +65,7 @@ class QuestionSerializer(serializers.ModelSerializer):
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
-        fields = '__all__'
+        fields = ['content']
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -80,7 +77,17 @@ class AnswerSerializer(serializers.ModelSerializer):
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
-        fields = '__all__'
+        fields = ('title', 'description')
+
+    def to_representation(self, instance):
+        ret = super(SectionSerializer, self).to_representation(instance)
+
+        # extra fields
+        items = Item.objects.filter(section_id=instance.id)
+        items_serializer = ItemSerializer(items, many=True)
+        ret['items'] = items_serializer.data
+
+        return ret
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
