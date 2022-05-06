@@ -4,6 +4,20 @@ from .models import Answer, Creator, \
     Question, Section, SurveySent, SurveySubmission, Survey, OptionItem
 
 
+class SurveyInfoSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Survey
+        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at')
+
+    def to_representation(self, instance):
+        ret = super(SurveyInfoSerializer, self).to_representation(instance)
+
+        #extra fields
+        questions_count = Item.objects.filter(survey_id=instance.id).count()
+        ret['questions_count'] = questions_count
+        return ret
+
+
 class SurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
@@ -97,7 +111,7 @@ class SectionSerializer(serializers.ModelSerializer):
         ret = super(SectionSerializer, self).to_representation(instance)
 
         # extra fields
-        items = Item.objects.filter(section_id=instance.id)
+        items = Item.objects.filter(survey_id=instance.id)
         items_serializer = ItemSerializer(items, many=True)
         ret['items'] = items_serializer.data
 
