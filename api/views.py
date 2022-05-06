@@ -2,14 +2,23 @@ from django.shortcuts import render
 from rest_framework import status
 from rest_framework.views import APIView
 from rest_framework.response import Response
-from .serializers import SurveySerializer
+from .serializers import SurveySerializer, SurveyInfoSerializer
 from .models import Survey
 
 
 class SurveysList(APIView):
     def get(self, request):
-        surveys = Survey.objects.all()
-        serializer = SurveySerializer(surveys, many=True)
+        creator_id = request.query_params.get('creator_id')
+        if creator_id is not None:
+            surveys = Survey.objects.filter(creator_id=creator_id)
+        else:
+            surveys = Survey.objects.all()
+
+        brief = request.query_params.get('brief')
+        if brief is not None and brief == 'true':
+            serializer = SurveyInfoSerializer(surveys, many=True)
+        else:
+            serializer = SurveySerializer(surveys, many=True)
         return Response(serializer.data)
 
     def post(self, request):
