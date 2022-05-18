@@ -138,3 +138,12 @@ STATIC_URL = 'static/'
 # https://docs.djangoproject.com/en/4.0/ref/settings/#default-auto-field
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+# Email config
+EMAIL_HOST = 'smtp.gmail.com'
+EMAIL_PORT = 587
+EMAIL_USE_TLS = True
+EMAIL_HOST_USER = 'badaniesatysfakcjiklientow@gmail.com'
+EMAIL_HOST_PASSWORD = 'gmvyspWAApkwV5s'
+DEFAULT_FROM_EMAIL = 'Ankiety InsERT <badaniesatysfakcjiklientow@gmail.com>'

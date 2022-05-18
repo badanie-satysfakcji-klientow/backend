@@ -3,6 +3,9 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer
 from .models import Survey, Item
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
 
 
 class SurveyViewSet(ModelViewSet):
@@ -39,6 +42,27 @@ class SurveyViewSet(ModelViewSet):
         """
         # delete survey by its id
         """
+
+    def send(self, request, *args, **kwargs):
+        """
+        send a mail with link to survey
+        """
+        survey_title = request.data['survey_title']
+        survey_link = request.data['survey_link']
+        recipient_list = request.data['recipient_list']
+
+        context = {'link': survey_link}
+        html_message = render_to_string('email_template.html', context=context)
+        message = strip_tags(html_message)
+
+        send_mail(subject=survey_title,
+                  message=message,
+                  from_email=None,
+                  recipient_list=recipient_list,
+                  html_message=html_message,
+                  fail_silently=False)
+
+        return Response(status=status.HTTP_200_OK)
 
 
 class ItemViewSet(ModelViewSet):
