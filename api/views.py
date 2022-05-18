@@ -39,6 +39,9 @@ class SurveyViewSet(ModelViewSet):
         """
         # delete survey by its id
         """
+        survey = Survey.objects.get(pk=kwargs['survey_id'])
+        survey.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ItemViewSet(ModelViewSet):
