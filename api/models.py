@@ -139,7 +139,7 @@ class Precondition(models.Model):
 class SurveySubmission(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     submitted_at = models.DateTimeField()
-    survey = models.ForeignKey(Survey, models.CASCADE)
+    survey = models.ForeignKey(Survey, models.DO_NOTHING)
     interviewee = models.ForeignKey(Interviewee, models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
