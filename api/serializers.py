@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from .models import Answer, Creator, \
     Interviewee, Item, Option, Precondition, \
-    Question, Section, SurveySent, SurveySubmission, Survey, OptionItem
+    Question, Section, SurveySent, SurveySubmission, Survey
 
 
 class SurveyInfoSerializer(serializers.ModelSerializer):
@@ -21,7 +21,8 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
 class SurveySerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
-        fields = ('title',
+        fields = ('id',
+                  'title',
                   'description',
                   'creator_id',
                   'created_at',
@@ -31,15 +32,6 @@ class SurveySerializer(serializers.ModelSerializer):
                   'anonymous',
                   'greeting',
                   'farewell')
-
-    def to_representation(self, instance):
-        ret = super(SurveySerializer, self).to_representation(instance)
-
-        # extra fields
-        sections = Section.objects.all()
-        sections_serializer = SectionSerializer(sections, many=True)
-        ret['sections'] = sections_serializer.data
-        return ret
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -61,39 +53,37 @@ class ItemSerializer(serializers.ModelSerializer):
         model = Item
         fields = ['id', 'section', 'header', 'type', 'questions']
 
-    def to_representation(self, instance):
-        ret = super(ItemSerializer, self).to_representation(instance)
-        ret['type'] = self.type_map[ret['type']]
-
-        # extra fields
-        questions = Question.objects.filter(item_id=instance.id)
-        questions_serializer = QuestionSerializer(questions, many=True)
-        ret['questions'] = questions_serializer.data
-        option_ids = OptionItem.objects.filter(item_id=instance.id).values_list('option_id')
-
-        if len(option_ids) > 0:
-            options = Option.objects.filter(id__in=option_ids)
-            options_serializer = OptionSerializer(options, many=True)
-            ret['options'] = options_serializer.data
-
-        preconditions = Precondition.objects.filter(item_id=instance.id)
-        preconditions_serializer = PreconditionSerializer(preconditions, many=True)
-        if len(preconditions_serializer.data) > 0:
-            ret['preconditions'] = preconditions_serializer.data
-
-        return ret
-
 
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
-        fields = ('order', 'value')
+        fields = ('id', 'order', 'value')
 
 
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
-        fields = ['content']
+        fields = ['id', 'content']
+
+
+class ItemSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True)
+    options = OptionSerializer(many=True)
+
+    class Meta:
+        model = Item
+        fields = ['id', 'header', 'type', 'required', 'questions', 'options']
+
+    def create(self, validated_data):
+        questions = validated_data.pop('questions')
+        options = validated_data.pop('options')
+        validated_data['survey_id'] = self.context['survey_id']
+        item = Item.objects.create(**validated_data)
+        for question in questions:
+            Question.objects.create(item=item, **question)
+        for option in options:
+            Option.objects.create(item=item, **option)
+        return item
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -113,8 +103,6 @@ class SectionSerializer(serializers.ModelSerializer):
         # extra fields
         items = Item.objects.filter(survey_id=instance.id)
         items_serializer = ItemSerializer(items, many=True)
-        ret['items'] = items_serializer.data
-
         return ret
 
 
@@ -122,9 +110,3 @@ class PreconditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Precondition
         fields = ('expected_option', 'next_item')
-
-
-class OptionItemSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = OptionItem
-        fields = ('option_id', 'item_id')

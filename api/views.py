@@ -1,79 +1,69 @@
-from django.shortcuts import render
-from rest_framework import status
-from rest_framework.views import APIView
+from rest_framework import status, viewsets
 from rest_framework.response import Response
-from .serializers import SurveySerializer, SurveyInfoSerializer
-from .models import Survey
+from rest_framework.viewsets import ModelViewSet
+from .serializers import SurveySerializer, ItemSerializer
+from .models import Survey, Item
 
 
-class SurveysList(APIView):
-    def get(self, request):
-        creator_id = request.query_params.get('creator_id')
-        if creator_id is not None:
-            surveys = Survey.objects.filter(creator_id=creator_id)
-        else:
-            surveys = Survey.objects.all()
+class SurveyViewSet(ModelViewSet):
+    queryset = Survey.objects.all()
+    serializer_class = SurveySerializer
 
-        brief = request.query_params.get('brief')
-        if brief is not None and brief == 'true':
-            serializer = SurveyInfoSerializer(surveys, many=True)
-        else:
-            serializer = SurveySerializer(surveys, many=True)
+    def list(self, request, *args, **kwargs):
+        surveys = Survey.objects.all()
+        serializer = SurveySerializer(surveys, many=True)
         return Response(serializer.data)
 
-    def post(self, request):
-        serializer = SurveySerializer(data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED, headers=headers)
 
+    def retrieve(self, request, *args, **kwargs):
+        pass
 
-class SurveyDetail(APIView):
-    def get(self, request, pk):
-        """
-        # get survey by its id
-        """
-        survey = Survey.objects.get(pk=pk)
-        serializer = SurveySerializer(survey)
-        return Response(serializer.data)
-
-    def put(self, request, pk):
+    def update(self, request, *args, **kwargs):
         """
         # update survey by its id
         """
-        survey = Survey.objects.get(pk=pk)
-        serializer = SurveySerializer(survey, data=request.data)
-        if serializer.is_valid():
-            serializer.save()
-            return Response(serializer.data)
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        pass
 
-    def post(self, request, pk):
+    def partial_update(self, request, *args, **kwargs):
         """
-        # save survey answer by its id
+        # update survey by its id
         """
-        survey = Survey.objects.get(pk=pk)
-        survey.answers.append(request.data)
-        survey.save()
-        return Response(status=status.HTTP_201_CREATED)
+
+    def destroy(self, request, *args, **kwargs):
+        """
+        # delete survey by its id
+        """
 
 
-class SurveyResults(APIView):
-    def get(self, request, pk):
-        """
-        # get survey results by its id
-        """
-        survey = Survey.objects.get(pk=pk)
-        serializer = SurveySerializer(survey)
-        return Response(serializer.data)
+class ItemViewSet(ModelViewSet):
+    queryset = Item.objects.all()
+    serializer_class = ItemSerializer
 
+    def create(self, request, *args, **kwargs) -> Response:
+        """
+        # save survey question by its id
+        """
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        headers = self.get_success_headers(serializer.data)
+        return Response({'status': 'created item'}, status=status.HTTP_201_CREATED,
+                        headers=headers)
 
-class SendSurvey(APIView):
-    def post(self, request):
+    def update(self, request, *args, **kwargs):
         """
-        # send survey by its id
+        # update survey question by its id
         """
-        survey = Survey.objects.get(pk=request.data['id'])
-        survey.send()
-        return Response(status=status.HTTP_201_CREATED)
+        pass
+
+    def partial_update(self, request, *args, **kwargs):
+        """
+        # update survey question by its id
+        """

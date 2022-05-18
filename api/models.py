@@ -11,6 +11,7 @@ import uuid
 
 class Option(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    item = models.ForeignKey('Item', related_name='options', on_delete=models.CASCADE)
     content = models.TextField(blank=True, null=True)
 
     class Meta:
@@ -44,7 +45,7 @@ class Survey(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     creator_id = models.ForeignKey(Creator, models.DO_NOTHING, db_column='creator_id')
-    created_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     paused = models.BooleanField()
@@ -114,15 +115,6 @@ class Interviewee(models.Model):
         db_table = 'interviewees'
 
 
-class OptionItem(models.Model):
-    option = models.ForeignKey(Option, models.DO_NOTHING)
-    item = models.ForeignKey(Item, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'options_items'
-
-
 class SurveySent(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
@@ -153,12 +145,3 @@ class SurveySubmission(models.Model):
     class Meta:
         managed = False
         db_table = 'survey_submissions'
-
-
-#   class SurveyItem(models.Model):
-#     survey = models.ForeignKey(Surveys, models.DO_NOTHING)
-#     item = models.ForeignKey(Items, models.DO_NOTHING)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'surveys_items'
