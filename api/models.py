@@ -62,7 +62,6 @@ class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING, db_column='survey_id')
     section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
-    header = models.CharField(max_length=255, blank=True, null=True)
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 

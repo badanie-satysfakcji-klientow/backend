@@ -51,6 +51,7 @@ class ItemViewSet(ModelViewSet):
         """
         serializer = self.get_serializer(data=request.data)
         serializer.context['survey_id'] = kwargs.get('survey_id')
+        serializer.context['type'] = request.data.get('type')
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
