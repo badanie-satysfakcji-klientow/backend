@@ -72,7 +72,7 @@ class Item(models.Model):
 
 class Question(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    order = models.IntegerField()
+    order = models.IntegerField(blank=True, null=True)
     item = models.ForeignKey(Item, related_name='questions', on_delete=models.DO_NOTHING)
     value = models.TextField()
 

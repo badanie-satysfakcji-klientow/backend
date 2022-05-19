@@ -1,3 +1,4 @@
+from django.db.models import Max
 from rest_framework import serializers
 from .models import Answer, Creator, \
     Interviewee, Item, Option, Precondition, \
@@ -47,8 +48,8 @@ class OptionSerializer(serializers.ModelSerializer):
 
 
 class ItemSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True, required=False)
-    options = OptionSerializer(many=True, required=False)
+    questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
+    options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
 
     type_map = {
         1: 'list',
@@ -76,9 +77,20 @@ class ItemSerializer(serializers.ModelSerializer):
         validated_data['type'] = type_map_key
         item = Item.objects.create(**validated_data)
         if questions:
-            Question.objects.bulk_create([Question(item=item, **q) for q in questions])
+            # get max order index from questions in survey
+            survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
+            max_order = Question.objects.filter(item_id__in=survey_items).aggregate(max_order=Max('order'))['max_order'] or 0
+            self.context['questions'] = []
+            for question in questions:
+                max_order += 1
+                obj = {'item_id': item.id, 'order': max_order, 'value': question}
+                question = Question.objects.create(**obj)
+                self.context.get('questions').append(question)
+
         if options:
-            Option.objects.bulk_create([Option(item=item, **o) for o in options])
+            for option in options:
+                Option.objects.create(**{'item_id': item.id, 'content': option})
+
         return item
 
 

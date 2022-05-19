@@ -2,7 +2,7 @@ from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer
-from .models import Survey, Item
+from .models import Survey, Item, Question
 
 
 class SurveyViewSet(ModelViewSet):
@@ -45,6 +45,12 @@ class ItemViewSet(ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
 
+    def questions_ids_dictionary(self, questions):
+        dictionary = {}
+        for question in questions: # type: Question
+            dictionary[question.order] = question.id
+        return dictionary
+
     def create(self, request, *args, **kwargs) -> Response:
         """
         # save survey question by its id
@@ -54,9 +60,11 @@ class ItemViewSet(ModelViewSet):
         serializer.context['type'] = request.data.get('type')
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response({'status': 'created item'}, status=status.HTTP_201_CREATED,
-                        headers=headers)
+        # headers = self.get_success_headers(serializer.data)
+        return Response({'status': 'created item',
+                         'item_id': serializer.data.get('id'),
+                         'questions_ids': self.questions_ids_dictionary(serializer.context['questions'])},
+                        status=status.HTTP_201_CREATED)
 
     def update(self, request, *args, **kwargs):
         """
@@ -68,3 +76,4 @@ class ItemViewSet(ModelViewSet):
         """
         # update survey question by its id
         """
+
