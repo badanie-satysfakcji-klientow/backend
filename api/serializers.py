@@ -100,15 +100,36 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SectionSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField()
+class SectionSerializer(serializers.Serializer):
+    start_id = serializers.UUIDField(required=True)
+    end_id = serializers.UUIDField(required=True)
 
-    class Meta:
-        model = Section
-        fields = ('title', 'description')
+    def validate(self, attrs):
+        survey_id = self.context['survey_id']
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['start_id']).exists():
+            raise serializers.ValidationError('Start item not found')
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['end_id']).exists():
+            raise serializers.ValidationError('End item not found')
+        return attrs
 
-    def get_items(self, obj):
-        return ItemSerializer(Item.objects.filter(survey_id=obj.id), many=True).data
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        # tuple as ( 'start_id', 'end_id' )
+        question_indexes = (
+            Question.objects.filter(item_id=validated_data['start_id']).first(),
+            Question.objects.filter(item_id=validated_data['end_id']).first(),
+        )
+
+        item_ids = Question.objects.filter(
+            item_id__in=Item.objects.filter(survey_id=self.context['survey_id']),
+            order__lte=question_indexes[0].order,
+            order__gte=question_indexes[1].order
+        ).values_list('item_id', flat=True)
+
+        # update these selected items
+        Item.objects.filter(id__in=item_ids).update(section_id=validated_data['start_id'])
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
