@@ -13,7 +13,6 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
     def to_representation(self, instance):
         ret = super(SurveyInfoSerializer, self).to_representation(instance)
 
-        #extra fields
         questions_count = Item.objects.filter(survey_id=instance.id).count()
         ret['questions_count'] = questions_count
         return ret
@@ -100,36 +99,38 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = '__all__'
 
 
-class SectionSerializer(serializers.Serializer):
-    start_id = serializers.UUIDField(required=True)
-    end_id = serializers.UUIDField(required=True)
+class SectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Section
+        fields = ['id', 'start_item', 'end_item', 'title', 'description']
 
     def validate(self, attrs):
         survey_id = self.context['survey_id']
-        if not Item.objects.filter(survey_id=survey_id, id=attrs['start_id']).exists():
+
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['start_item'].id).exists():
             raise serializers.ValidationError('Start item not found')
-        if not Item.objects.filter(survey_id=survey_id, id=attrs['end_id']).exists():
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
             raise serializers.ValidationError('End item not found')
+
+        # check if start_item is before end_item
+        if not (start_item_order := Question.objects.filter(item_id=attrs['start_item'].id).first().order) <= \
+               (end_item_order := Question.objects.filter(item_id=attrs['end_item'].id).first().order):
+            raise serializers.ValidationError('Start item must be before or equal to end item')
+
+        # check if sections overlap
+        sections = Section.objects.filter(start_item_id__in=Item.objects.filter(survey_id=survey_id))
+
+        for section in sections:
+            section.start_item_order = Question.objects.filter(item_id=section.start_item_id).first().order
+            section.end_item_order = Question.objects.filter(item_id=section.end_item_id).first().order
+            if section.start_item_order <= start_item_order <= section.end_item_order or \
+               section.start_item_order <= end_item_order <= section.end_item_order:
+                raise serializers.ValidationError('Sections overlap')
+
         return attrs
 
     def update(self, instance, validated_data):
         pass
-
-    def create(self, validated_data):
-        # tuple as ( 'start_id', 'end_id' )
-        question_indexes = (
-            Question.objects.filter(item_id=validated_data['start_id']).first(),
-            Question.objects.filter(item_id=validated_data['end_id']).first(),
-        )
-
-        item_ids = Question.objects.filter(
-            item_id__in=Item.objects.filter(survey_id=self.context['survey_id']),
-            order__lte=question_indexes[0].order,
-            order__gte=question_indexes[1].order
-        ).values_list('item_id', flat=True)
-
-        # update these selected items
-        Item.objects.filter(id__in=item_ids).update(section_id=validated_data['start_id'])
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
