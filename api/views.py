@@ -8,6 +8,7 @@ from .models import Survey, Item, Question
 class SurveyViewSet(ModelViewSet):
     queryset = Survey.objects.all()
     serializer_class = SurveySerializer
+    lookup_field = 'survey_id'
 
     def list(self, request, *args, **kwargs):
         surveys = Survey.objects.all()

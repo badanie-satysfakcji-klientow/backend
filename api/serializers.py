@@ -9,6 +9,7 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
         fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at')
+        lookup_field = 'survey_id'
 
     def to_representation(self, instance):
         ret = super(SurveyInfoSerializer, self).to_representation(instance)
@@ -92,6 +93,19 @@ class ItemSerializer(serializers.ModelSerializer):
                 Option.objects.create(**{'item_id': item.id, 'content': option})
 
         return item
+
+    def update(self, instance, validated_data):
+        questions = validated_data.pop('questions')
+        options = validated_data.pop('options')
+        if questions:
+            Question.objects.filter(item=instance).delete()
+            Question.objects.bulk_create([Question(item=instance, **q) for q in questions])
+        if options:
+            Option.objects.filter(item=instance).delete()
+            Option.objects.bulk_create([Option(item=instance, **o) for o in options])
+        instance.__dict__.update(**validated_data)
+        instance.save()
+        return instance
 
 
 class AnswerSerializer(serializers.ModelSerializer):
