@@ -1,3 +1,4 @@
+from django.db.models import Max
 from rest_framework import serializers
 from .models import Answer, Creator, \
     Interviewee, Item, Option, Precondition, \
@@ -34,7 +35,22 @@ class SurveySerializer(serializers.ModelSerializer):
                   'farewell')
 
 
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ('id', 'order', 'value')
+
+
+class OptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Option
+        fields = ['id', 'content']
+
+
 class ItemSerializer(serializers.ModelSerializer):
+    questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
+    options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
+
     type_map = {
         1: 'list',
         2: 'gridSingle',
@@ -51,38 +67,30 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'section', 'header', 'type', 'questions']
-
-
-class QuestionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Question
-        fields = ('id', 'order', 'value')
-
-
-class OptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Option
-        fields = ['id', 'content']
-
-
-class ItemSerializer(serializers.ModelSerializer):
-    questions = QuestionSerializer(many=True)
-    options = OptionSerializer(many=True)
-
-    class Meta:
-        model = Item
-        fields = ['id', 'header', 'type', 'required', 'questions', 'options']
+        fields = ['id', 'required', 'questions', 'options']
 
     def create(self, validated_data):
         questions = validated_data.pop('questions')
         options = validated_data.pop('options')
         validated_data['survey_id'] = self.context['survey_id']
+        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+        validated_data['type'] = type_map_key
         item = Item.objects.create(**validated_data)
-        for question in questions:
-            Question.objects.create(item=item, **question)
-        for option in options:
-            Option.objects.create(item=item, **option)
+        if questions:
+            # get max order index from questions in survey
+            survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
+            max_order = Question.objects.filter(item_id__in=survey_items).aggregate(max_order=Max('order'))['max_order'] or 0
+            self.context['questions'] = []
+            for question in questions:
+                max_order += 1
+                obj = {'item_id': item.id, 'order': max_order, 'value': question}
+                question = Question.objects.create(**obj)
+                self.context.get('questions').append(question)
+
+        if options:
+            for option in options:
+                Option.objects.create(**{'item_id': item.id, 'content': option})
+
         return item
 
 
@@ -93,17 +101,14 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 class SectionSerializer(serializers.ModelSerializer):
+    items = serializers.SerializerMethodField()
+
     class Meta:
         model = Section
         fields = ('title', 'description')
 
-    def to_representation(self, instance):
-        ret = super(SectionSerializer, self).to_representation(instance)
-
-        # extra fields
-        items = Item.objects.filter(survey_id=instance.id)
-        items_serializer = ItemSerializer(items, many=True)
-        return ret
+    def get_items(self, obj):
+        return ItemSerializer(Item.objects.filter(survey_id=obj.id), many=True).data
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
