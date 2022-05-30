@@ -1,4 +1,4 @@
-from rest_framework import status, viewsets, serializers
+from rest_framework import status, viewsets
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer, SectionSerializer
@@ -39,6 +39,9 @@ class SurveyViewSet(ModelViewSet):
         """
         # delete survey by its id
         """
+        survey = Survey.objects.get(pk=kwargs['survey_id'])
+        survey.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ItemViewSet(ModelViewSet):
@@ -77,7 +80,7 @@ class ItemViewSet(ModelViewSet):
         # update survey question by its id
         """
 
-
+        
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
 
