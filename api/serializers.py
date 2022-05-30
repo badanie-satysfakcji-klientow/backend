@@ -115,6 +115,12 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = ['id', 'content_numeric', 'content_character', 'option', 'submission']
         read_only_fields = ['question']
 
+    def del_attrs(self, attrs, attr_list):
+        for attr in attr_list:
+            if hasattr(attrs, attr):
+                delattr(attrs, attr)
+        return attrs
+
     def validate(self, attrs):
         attrs['question'] = Question.objects.filter(id=self.context['question_id']).first()
         # check if survey_submission contains the question
@@ -134,24 +140,15 @@ class AnswerSerializer(serializers.ModelSerializer):
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
             if not attrs['option']:
                 raise serializers.ValidationError('Option is required')
-            if hasattr(attrs, 'content_numeric'):
-                delattr(attrs, 'content_numeric')
-            if hasattr(attrs, 'content_character'):
-                delattr(attrs, 'content_character')
-        elif item_type in ['openShort', 'openLong', 'openNumeric']:
+            self.del_attrs(attrs, ['content_numeric', 'content_character'])
+        elif item_type in ['openShort', 'openLong']:
             if not attrs['content_character']:
                 raise serializers.ValidationError('Content is required')
-            if hasattr(attrs, 'option'):
-                delattr(attrs, 'option')
-            if hasattr(attrs, 'content_numeric'):
-                delattr(attrs, 'content_numeric')
+            self.del_attrs(attrs, ['content_numeric', 'option'])
         else:
             if not attrs['content_numeric']:
                 raise serializers.ValidationError('Content is required')
-            if hasattr(attrs, 'option'):
-                delattr(attrs, 'option')
-            if hasattr(attrs, 'content_character'):
-                delattr(attrs, 'content_character')
+            self.del_attrs(attrs, ['option', 'content_character'])
         return attrs
 
     def create(self, validated_data):
