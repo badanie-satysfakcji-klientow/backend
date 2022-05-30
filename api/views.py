@@ -1,6 +1,6 @@
 from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer, SectionSerializer
 from .models import Survey, Item, Question
 
@@ -78,7 +78,7 @@ class ItemViewSet(ModelViewSet):
         """
 
 
-class SectionViewSet(ViewSet):
+class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
 
     def list(self, request, *args, **kwargs):
