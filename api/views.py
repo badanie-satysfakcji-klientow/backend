@@ -1,8 +1,8 @@
 from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer, AnswerSerializer, SubmissionSerializer
 from .models import Survey, Item, Question, Answer, Submission
+from rest_framework.viewsets import ModelViewSet, ViewSet
 
 
 class SurveyViewSet(ModelViewSet):
@@ -39,6 +39,9 @@ class SurveyViewSet(ModelViewSet):
         """
         # delete survey by its id
         """
+        survey = Survey.objects.get(pk=kwargs['survey_id'])
+        survey.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ItemViewSet(ModelViewSet):
@@ -100,9 +103,27 @@ class AnswerViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
+class SectionViewSet(ViewSet):
+    serializer_class = SectionSerializer
+
+    def list(self, request, *args, **kwargs):
+        pass
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        # validate data
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
             return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
-        self.perform_create(serializer)
-        return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+        serializer.save()
+        return Response({'status': 'created section',
+                         'section_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, *args, **kwargs):
+        pass
