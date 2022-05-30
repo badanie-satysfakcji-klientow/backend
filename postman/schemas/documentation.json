@@ -67,19 +67,19 @@
         }
       },
       "post": {
-            "summary": "Save survey object",
-            "operationId": "saveSurvey",
-            "tags": [
-                "survey"
-            ],
-            "parameters": [
+        "summary": "Save survey object",
+        "operationId": "saveSurvey",
+        "tags": [
+            "survey"
+        ],
+        "parameters": [
 
-            ],
-            "responses": {
-                "200": {
-                    "description": "Save survey details"
-                }
+        ],
+        "responses": {
+            "200": {
+                "description": "Save survey details"
             }
+        }
       }
     }
   },
@@ -117,68 +117,68 @@
         }
       },
       "Survey": {
-          "type": "object",
-          "required": [
-              ""
-          ],
-          "properties": {
-              "id": {
-                  "type": "string",
-                  "format": "uuid"
-              },
-              "title": {
+        "type": "object",
+        "required": [
+            ""
+        ],
+        "properties": {
+          "id": {
+              "type": "string",
+              "format": "uuid"
+          },
+          "title": {
 
-              },
-              "description": {
+          },
+          "description": {
 
-              },
-              "creator_id": {
+          },
+          "creator_id": {
 
-              },
-              "created_at": {
-                
-              },
-              "starts_at": {
+          },
+          "created_at": {
 
-              },
-              "expires_at": {
+          },
+          "starts_at": {
 
-              },
-              "paused": {
+          },
+          "expires_at": {
 
-              },
-              "anonymous": {
+          },
+          "paused": {
 
-              },
-              "greeting": {
+          },
+          "anonymous": {
 
-              },
-              "farewell": {
+          },
+          "greeting": {
 
-              }
+          },
+          "farewell": {
+
           }
+        }
       },
       "Item": {
-          "properties":{
-            "id": {
+        "properties":{
+          "id": {
 
-            },
-            "survey": {
+          },
+          "survey": {
 
-            },
-            "section": {
+          },
+          "section": {
 
-            },
-            "header": {
+          },
+          "header": {
 
-            },
-            "type": {
+          },
+          "type": {
 
-            },
-            "required": {
+          },
+          "required": {
 
-            }
           }
+        }
       }
     }
   },
