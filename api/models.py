@@ -23,8 +23,6 @@ class Section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
-    start_item = models.ForeignKey('Item', related_name='start_item', on_delete=models.CASCADE)
-    end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
