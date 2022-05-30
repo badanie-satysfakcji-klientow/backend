@@ -23,6 +23,8 @@ class Section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    start_item = models.ForeignKey('Item', related_name='start_item', on_delete=models.CASCADE)
+    end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
@@ -44,7 +46,7 @@ class Survey(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    creator_id = models.ForeignKey(Creator, models.DO_NOTHING, db_column='creator_id')
+    creator_id = models.ForeignKey(Creator, models.CASCADE, db_column='creator_id')
     created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
@@ -60,8 +62,8 @@ class Survey(models.Model):
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING, db_column='survey_id')
-    section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
+    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, db_column='survey_id')
+    section = models.ForeignKey(Section, on_delete=models.CASCADE)
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 
@@ -73,7 +75,8 @@ class Item(models.Model):
 class Question(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     order = models.IntegerField(blank=True, null=True)
-    item = models.ForeignKey(Item, related_name='questions', on_delete=models.DO_NOTHING)
+    item = models.ForeignKey(Item, related_name='questions', on_delete=models.CASCADE)
+
     value = models.TextField()
 
     class Meta:
@@ -126,7 +129,7 @@ class SurveySent(models.Model):
 
 class Precondition(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions')
+    item = models.ForeignKey('Item', models.CASCADE, related_name='preconditions')
     expected_option = models.ForeignKey(Option, models.DO_NOTHING)
     next_item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions_next')
 

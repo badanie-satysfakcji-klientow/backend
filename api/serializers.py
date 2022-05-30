@@ -138,7 +138,7 @@ class AnswerSerializer(serializers.ModelSerializer):
                 delattr(attrs, 'content_numeric')
             if hasattr(attrs, 'content_character'):
                 delattr(attrs, 'content_character')
-        elif item_type in ['openShort', 'openLong', 'openNumeric']:
+        elif item_type in ['openShort', 'openLong']:
             if not attrs['content_character']:
                 raise serializers.ValidationError('Content is required')
             if hasattr(attrs, 'option'):
@@ -161,14 +161,37 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 class SectionSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField()
-
     class Meta:
         model = Section
-        fields = ('title', 'description')
+        fields = ['id', 'start_item', 'end_item', 'title', 'description']
 
-    def get_items(self, obj):
-        return ItemSerializer(Item.objects.filter(survey_id=obj.id), many=True).data
+    def validate(self, attrs):
+        survey_id = self.context['survey_id']
+
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['start_item'].id).exists():
+            raise serializers.ValidationError('Start item not found')
+        if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
+            raise serializers.ValidationError('End item not found')
+
+        # check if start_item is before end_item
+        if not (start_item_order := Question.objects.filter(item_id=attrs['start_item'].id).first().order) <= \
+               (end_item_order := Question.objects.filter(item_id=attrs['end_item'].id).first().order):
+            raise serializers.ValidationError('Start item must be before or equal to end item')
+
+        # check if sections overlap
+        sections = Section.objects.filter(start_item_id__in=Item.objects.filter(survey_id=survey_id))
+
+        for section in sections:
+            section.start_item_order = Question.objects.filter(item_id=section.start_item_id).first().order
+            section.end_item_order = Question.objects.filter(item_id=section.end_item_id).first().order
+            if section.start_item_order <= start_item_order <= section.end_item_order or \
+               section.start_item_order <= end_item_order <= section.end_item_order:
+                raise serializers.ValidationError('Sections overlap')
+
+        return attrs
+
+    def update(self, instance, validated_data):
+        pass
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
