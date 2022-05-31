@@ -1,4 +1,4 @@
-from rest_framework import status, viewsets, serializers
+from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
@@ -45,8 +45,11 @@ class SurveyViewSet(ModelViewSet):
         # delete survey by its id
         """
         survey = Survey.objects.get(pk=kwargs['survey_id'])
-        survey.delete()
-        return Response(status=status.HTTP_204_NO_CONTENT)
+        try:
+            survey.delete()
+            return Response({'status': 'Deleted successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_204_NO_CONTENT)
+        except Exception:
+            return Response({'status': 'Not deleted', 'survey_id': kwargs['survey_id']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def send(self, request, *args, **kwargs):
         """
@@ -55,7 +58,7 @@ class SurveyViewSet(ModelViewSet):
         survey_id = kwargs['survey_id']
         survey = Survey.objects.get(pk=survey_id)
         survey_title = survey.title
-        survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id]).removeprefix('/api')   # http://127.0.0.1:4200/api/surveys/uuid
+        survey_link = settings.DOMAIN_NAME + reverse('surveys-uuid', args=[survey_id]).removeprefix('/api')   # http://127.0.0.1:4200/surveys/uuid
         recipient_list = request.data['recipient_list']
 
         context = {'link': survey_link}
@@ -135,6 +138,7 @@ class AnswerViewSet(ModelViewSet):
         serializer.context['question_id'] = kwargs.get('question_id')
         self.perform_create(serializer)
         return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
 
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
