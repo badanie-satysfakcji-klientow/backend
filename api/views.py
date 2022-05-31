@@ -1,8 +1,13 @@
 from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
+from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
 from .models import Survey, Item, Question, Answer, Submission
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
+from django.utils.html import strip_tags
+from django.conf import settings
+from django.urls import reverse
 
 
 class SurveyViewSet(ModelViewSet):
@@ -43,6 +48,31 @@ class SurveyViewSet(ModelViewSet):
         survey.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    def send(self, request, *args, **kwargs):
+        """
+        send a mail with link to survey
+        """
+        survey_id = kwargs['survey_id']
+        survey = Survey.objects.get(pk=survey_id)
+        survey_title = survey.title
+        survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id]).removeprefix('/api')   # http://127.0.0.1:4200/api/surveys/uuid
+        recipient_list = request.data['recipient_list']
+
+        context = {'link': survey_link}
+        html_message = render_to_string('email_template.html', context=context)
+        message = strip_tags(html_message)
+
+        try:
+            send_mail(subject=survey_title,
+                      message=message,
+                      from_email=None,
+                      recipient_list=recipient_list,
+                      html_message=html_message,
+                      fail_silently=False)
+            return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_200_OK)
+        except Exception:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
+            return Response({'status': 'Not sent', 'survey_id': survey_id}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class ItemViewSet(ModelViewSet):
     queryset = Item.objects.all()
@@ -80,7 +110,7 @@ class ItemViewSet(ModelViewSet):
         # update survey question by its id
         """
 
-
+        
 class SubmissionViewSet(ModelViewSet):
     queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
@@ -106,7 +136,7 @@ class AnswerViewSet(ModelViewSet):
         self.perform_create(serializer)
         return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
 
-class SectionViewSet(ViewSet):
+class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
 
     def list(self, request, *args, **kwargs):
