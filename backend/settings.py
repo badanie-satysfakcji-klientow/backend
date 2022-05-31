@@ -147,3 +147,6 @@ EMAIL_USE_TLS = True
 EMAIL_HOST_USER = 'badaniesatysfakcjiklientow@gmail.com'
 EMAIL_HOST_PASSWORD = 'gmvyspWAApkwV5s'
 DEFAULT_FROM_EMAIL = 'Ankiety InsERT <badaniesatysfakcjiklientow@gmail.com>'
+
+# Link / domain config
+DOMAIN_NAME = 'http://127.0.0.1:4200'

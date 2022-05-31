@@ -6,6 +6,8 @@ from .models import Survey, Item, Question
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
+from django.conf import settings
+from django.urls import reverse
 
 
 class SurveyViewSet(ModelViewSet):
@@ -50,22 +52,26 @@ class SurveyViewSet(ModelViewSet):
         """
         send a mail with link to survey
         """
-        survey_title = request.data['survey_title']
-        survey_link = request.data['survey_link']
+        survey_id = kwargs['survey_id']
+        survey = Survey.objects.get(pk=survey_id)
+        survey_title = survey.title
+        survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id])   # http://127.0.0.1:4200/api/surveys/uuid
         recipient_list = request.data['recipient_list']
-
+        print(survey_link)
         context = {'link': survey_link}
         html_message = render_to_string('email_template.html', context=context)
         message = strip_tags(html_message)
 
-        send_mail(subject=survey_title,
-                  message=message,
-                  from_email=None,
-                  recipient_list=recipient_list,
-                  html_message=html_message,
-                  fail_silently=False)
-
-        return Response(status=status.HTTP_200_OK)
+        try:
+            send_mail(subject=survey_title,
+                      message=message,
+                      from_email=None,
+                      recipient_list=recipient_list,
+                      html_message=html_message,
+                      fail_silently=False)
+            return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_200_OK)
+        except Exception:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
+            return Response({'status': 'Not sent', 'survey_id': survey_id}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ItemViewSet(ModelViewSet):
