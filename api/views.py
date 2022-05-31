@@ -1,4 +1,4 @@
-from rest_framework import status, viewsets
+from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from .serializers import SurveySerializer, ItemSerializer
@@ -55,7 +55,7 @@ class SurveyViewSet(ModelViewSet):
         survey_id = kwargs['survey_id']
         survey = Survey.objects.get(pk=survey_id)
         survey_title = survey.title
-        survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id])   # http://127.0.0.1:4200/api/surveys/uuid
+        survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id]).removeprefix('/api')   # http://127.0.0.1:4200/api/surveys/uuid
         recipient_list = request.data['recipient_list']
 
         context = {'link': survey_link}
