@@ -57,7 +57,7 @@ class SurveyViewSet(ModelViewSet):
         survey_title = survey.title
         survey_link = settings.DOMAIN_NAME + reverse('surveys', args=[survey_id])   # http://127.0.0.1:4200/api/surveys/uuid
         recipient_list = request.data['recipient_list']
-        print(survey_link)
+
         context = {'link': survey_link}
         html_message = render_to_string('email_template.html', context=context)
         message = strip_tags(html_message)

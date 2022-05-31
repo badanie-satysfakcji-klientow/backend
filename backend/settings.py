@@ -11,6 +11,11 @@ https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 
 from pathlib import Path
+import environ
+
+# reading .env file
+env = environ.Env()
+environ.Env.read_env()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -86,11 +91,11 @@ WSGI_APPLICATION = 'backend.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'badanie-satysfakcji-klientow',
-        'USER': 'postgres',
-        'PASSWORD': 'K6dh44w8K3D7DQ',
-        'HOST': '5.182.207.73',
-        'PORT': '5432',
+        'NAME': env('DATABASE_NAME'),
+        'USER': env('DATABASE_USER'),
+        'PASSWORD': env('DATABASE_PASSWORD'),
+        'HOST': env('DATABASE_HOST'),
+        'PORT': env('DATABASE_PORT'),
         'OPTIONS': {
             'options': '-c search_path=badanie-satysfakcji-klientow'
         }
@@ -144,9 +149,9 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 EMAIL_HOST = 'smtp.gmail.com'
 EMAIL_PORT = 587
 EMAIL_USE_TLS = True
-EMAIL_HOST_USER = 'badaniesatysfakcjiklientow@gmail.com'
-EMAIL_HOST_PASSWORD = 'gmvyspWAApkwV5s'
-DEFAULT_FROM_EMAIL = 'Ankiety InsERT <badaniesatysfakcjiklientow@gmail.com>'
+EMAIL_HOST_USER = env('EMAIL_HOST_USER')
+EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
+DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
 # Link / domain config
-DOMAIN_NAME = 'http://127.0.0.1:4200'
+DOMAIN_NAME = env('DOMAIN_NAME')
