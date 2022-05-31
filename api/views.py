@@ -25,9 +25,10 @@ class SurveyViewSet(ModelViewSet):
         """
         get survey by its id
         """
-        survey = Survey.objects.get(pk=kwargs.get('survey_id'))
-        serializer = SurveySerializer(survey)
-        return Response(serializer.data)
+        survey_id = kwargs.get('survey_id')
+        survey = Survey.objects.get(pk=survey_id)
+        serializer = self.get_serializer(survey)
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
     def update(self, request, *args, **kwargs):
         """

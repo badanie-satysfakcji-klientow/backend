@@ -33,25 +33,16 @@ class SurveySerializer(serializers.ModelSerializer):
                   'greeting',
                   'farewell')
 
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
 
-class ItemSerializer(serializers.ModelSerializer):
-    type_map = {
-        1: 'list',
-        2: 'gridSingle',
-        3: 'gridMultiple',
-        4: 'scale5',
-        5: 'scale10',
-        6: 'scaleNPS',
-        7: 'openShort',
-        8: 'openLong',
-        9: 'openNumeric',
-        10: 'closedSingle',
-        11: 'closedMultiple'
-    }
+        # # extra fields
+        sections = Section.objects.all()
+        sections_serializer = SectionSerializer(sections, many=True)
+        ret['sections'] = sections_serializer.data
 
-    class Meta:
-        model = Item
-        fields = ['id', 'section', 'header', 'type', 'questions']
+        # ret['sections'] = sections_serializer.data
+        return ret
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -72,7 +63,21 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'header', 'type', 'required', 'questions', 'options']
+        fields = ['id', 'type', 'required', 'questions', 'options']
+
+    type_map = {
+        1: 'list',
+        2: 'gridSingle',
+        3: 'gridMultiple',
+        4: 'scale5',
+        5: 'scale10',
+        6: 'scaleNPS',
+        7: 'openShort',
+        8: 'openLong',
+        9: 'openNumeric',
+        10: 'closedSingle',
+        11: 'closedMultiple'
+    }
 
     def create(self, validated_data):
         questions = validated_data.pop('questions')
@@ -84,6 +89,26 @@ class ItemSerializer(serializers.ModelSerializer):
         for option in options:
             Option.objects.create(item=item, **option)
         return item
+
+    def to_representation(self, instance):
+        ret = super().to_representation(instance)
+        ret['type'] = self.type_map[ret['type']]
+
+        # extra fields
+        questions = Question.objects.filter(item_id=instance.id)
+        questions_serializer = QuestionSerializer(questions, many=True)
+        ret['questions'] = questions_serializer.data
+
+        options = Option.objects.filter(item_id=instance.id)
+        options_serializer = OptionSerializer(options, many=True)
+        ret['options'] = options_serializer.data
+
+        preconditions = Precondition.objects.filter(item_id=instance.id)
+        preconditions_serializer = PreconditionSerializer(preconditions, many=True)
+        if len(preconditions_serializer.data) > 0:
+            ret['preconditions'] = preconditions_serializer.data
+
+        return ret
 
 
 class AnswerSerializer(serializers.ModelSerializer):
@@ -98,11 +123,13 @@ class SectionSerializer(serializers.ModelSerializer):
         fields = ('title', 'description')
 
     def to_representation(self, instance):
-        ret = super(SectionSerializer, self).to_representation(instance)
+        ret = super().to_representation(instance)
 
         # extra fields
-        items = Item.objects.filter(survey_id=instance.id)
+        items = Item.objects.filter(section_id=instance.id)
         items_serializer = ItemSerializer(items, many=True)
+        ret['items'] = items_serializer.data
+
         return ret
 
 
