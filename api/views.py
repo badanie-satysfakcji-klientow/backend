@@ -27,12 +27,7 @@ class SurveyViewSet(ModelViewSet):
         return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED, headers=headers)
 
     def retrieve(self, request, *args, **kwargs):
-        """
-        get survey by its id
-        """
-        survey = Survey.objects.get(pk=kwargs.get('survey_id'))
-        serializer = SurveySerializer(survey)
-        return Response(serializer.data)
+        pass
 
     def update(self, request, *args, **kwargs):
         """
@@ -117,7 +112,7 @@ class ItemViewSet(ModelViewSet):
         """
         # update survey question by its id
         """
-        
+
         
 class SubmissionViewSet(ModelViewSet):
     queryset = Submission.objects.all()
