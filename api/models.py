@@ -23,6 +23,8 @@ class Section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    start_item = models.ForeignKey('Item', related_name='start_item', on_delete=models.CASCADE)
+    end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
@@ -84,11 +86,11 @@ class Question(models.Model):
 
 class Answer(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    question = models.ForeignKey(Question, models.DO_NOTHING)
+    question = models.ForeignKey(Question, models.CASCADE)
     content_numeric = models.IntegerField(blank=True, null=True)
     content_character = models.TextField(blank=True, null=True)
-    option = models.ForeignKey(Option, models.DO_NOTHING, blank=True, null=True)
-    # submission = models.ForeignKey('SurveySubmission', models.DO_NOTHING)
+    option = models.ForeignKey(Option, models.CASCADE, blank=True, null=True)
+    submission = models.ForeignKey('Submission', models.CASCADE)
 
     class Meta:
         managed = False
@@ -136,11 +138,11 @@ class Precondition(models.Model):
         db_table = 'preconditions'
 
 
-class SurveySubmission(models.Model):
+class Submission(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    submitted_at = models.DateTimeField()
-    survey = models.ForeignKey(Survey, models.DO_NOTHING)
-    interviewee = models.ForeignKey(Interviewee, models.DO_NOTHING, blank=True, null=True)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    survey = models.ForeignKey('Survey', models.DO_NOTHING)
+    interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         managed = False

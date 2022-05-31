@@ -1,8 +1,8 @@
-from rest_framework import status
+from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from .serializers import SurveySerializer, ItemSerializer
-from .models import Survey, Item, Question
+from .serializers import SurveySerializer, ItemSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
+from .models import Survey, Item, Question, Answer, Subbmission
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -109,3 +109,51 @@ class ItemViewSet(ModelViewSet):
         """
         # update survey question by its id
         """
+
+        
+class SubmissionViewSet(ModelViewSet):
+    queryset = Submission.objects.all()
+    serializer_class = SubmissionSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            return Response({'status': 'error', 'message': e.detail['non_field_errors'][0]}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'submission_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
+
+class AnswerViewSet(ModelViewSet):
+    queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['question_id'] = kwargs.get('question_id')
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
+class SectionViewSet(ModelViewSet):
+    serializer_class = SectionSerializer
+
+    def list(self, request, *args, **kwargs):
+        pass
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.serializer_class(data=request.data)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        # validate data
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            return Response({'status': 'error', 'message': e.detail}, status=status.HTTP_400_BAD_REQUEST)
+        serializer.save()
+        return Response({'status': 'created section',
+                         'section_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
+
+    def retrieve(self, request, *args, **kwargs):
+        pass
