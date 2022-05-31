@@ -1,8 +1,8 @@
 from rest_framework import status, viewsets, serializers
 from rest_framework.response import Response
+from .serializers import SurveySerializer, ItemSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
+from .models import Survey, Item, Question, Answer, Submission
 from rest_framework.viewsets import ModelViewSet, ViewSet
-from .serializers import SurveySerializer, ItemSerializer, SectionSerializer
-from .models import Survey, Item, Question
 
 
 class SurveyViewSet(ModelViewSet):
@@ -80,6 +80,31 @@ class ItemViewSet(ModelViewSet):
         # update survey question by its id
         """
 
+
+class SubmissionViewSet(ModelViewSet):
+    queryset = Submission.objects.all()
+    serializer_class = SubmissionSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            return Response({'status': 'error', 'message': e.detail['non_field_errors'][0]}, status=status.HTTP_400_BAD_REQUEST)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'submission_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
+
+class AnswerViewSet(ModelViewSet):
+    queryset = Answer.objects.all()
+    serializer_class = AnswerSerializer
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['question_id'] = kwargs.get('question_id')
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
 
 class SectionViewSet(ViewSet):
     serializer_class = SectionSerializer
