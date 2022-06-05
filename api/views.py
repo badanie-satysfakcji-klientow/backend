@@ -29,12 +29,12 @@ class SurveyViewSet(ModelViewSet):
         """
         # update survey by its id
         """
-        pass
-
-    def partial_update(self, request, *args, **kwargs):
-        """
-        # update survey by its id
-        """
+        partial = kwargs.pop('partial', False)
+        instance = Survey.objects.filter(id=kwargs['survey_id']).first()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response({'status': 'updated'}, status=status.HTTP_200_OK)
 
     def destroy(self, request, *args, **kwargs):
         """
@@ -67,14 +67,4 @@ class ItemViewSet(ModelViewSet):
                          'questions_ids': self.questions_ids_dictionary(serializer.context['questions'])},
                         status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):
-        """
-        # update survey question by its id
-        """
-        pass
-
-    def partial_update(self, request, *args, **kwargs):
-        """
-        # update survey question by its id
-        """
 

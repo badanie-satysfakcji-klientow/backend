@@ -51,7 +51,6 @@ class OptionSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
     options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
-
     type_map = {
         1: 'list',
         2: 'gridSingle',
@@ -68,7 +67,17 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'required', 'questions', 'options']
+        fields = ['id', 'survey', 'section', 'type', 'required', 'questions', 'options']
+
+    def get_type_display(self, obj) -> int:
+        return [key for key, value in self.type_map.items() if value == self.context['type']][0]
+
+    def validate(self, attrs):
+        if attrs['type'] not in self.type_map:
+            raise serializers.ValidationError('Invalid type')
+        else:
+            attrs['type'] = self.type_map[attrs['type']]
+        return attrs
 
     def create(self, validated_data):
         questions = validated_data.pop('questions')
