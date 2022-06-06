@@ -7,4 +7,5 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>', SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update',
                                                                 'patch': 'partial_update', 'delete': 'destroy'})),
     path('api/surveys', SurveyViewSet.as_view({'get': 'list', 'post': 'create'})),
+    path('api/creators/<uuid:creator_id>/surveys', SurveyViewSet.as_view({'get': 'retrieve_brief'}))
 ]
