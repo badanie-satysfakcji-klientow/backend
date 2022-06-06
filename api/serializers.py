@@ -48,6 +48,12 @@ class OptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'content']
 
 
+class ItemPatchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Item
+        fields = ['id', 'survey', 'section', 'type', 'required']
+
+
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
     options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
@@ -106,6 +112,8 @@ class ItemSerializer(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         questions = validated_data.pop('questions')
         options = validated_data.pop('options')
+        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+        validated_data['type'] = type_map_key
         if questions:
             Question.objects.filter(item=instance).delete()
             Question.objects.bulk_create([Question(item=instance, **q) for q in questions])
