@@ -6,21 +6,33 @@ from .models import Answer, Creator, \
 
 
 class SurveyInfoSerializer(serializers.ModelSerializer):
+    sections_count = serializers.SerializerMethodField()
+    items_count = serializers.SerializerMethodField()
+    questions_count = serializers.SerializerMethodField()
+
     class Meta:
         model = Survey
-        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at')
         lookup_field = 'survey_id'
+        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
+                  'sections_count', 'items_count', 'questions_count')
 
-    def to_representation(self, instance):
-        ret = super(SurveyInfoSerializer, self).to_representation(instance)
 
-        # extra fields
-        questions_count = Item.objects.filter(survey_id=instance.id).count()
-        ret['questions_count'] = questions_count
-        return ret
+    def get_sections_count(self, instance):
+        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
+        return Section.objects.filter(start_item_id__in=items_list).count()
+
+    def get_items_count(self, instance):
+        return Item.objects.filter(survey_id=instance.id).count()
+
+    def get_questions_count(self, instance):
+        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
+        return Question.objects.filter(item_id__in=items_list).count()
 
 
 class SurveySerializer(serializers.ModelSerializer):
+    sections = serializers.SerializerMethodField(read_only=True)
+    items = serializers.SerializerMethodField(read_only=True)
+
     class Meta:
         model = Survey
         fields = ('id',
@@ -33,7 +45,22 @@ class SurveySerializer(serializers.ModelSerializer):
                   'paused',
                   'anonymous',
                   'greeting',
-                  'farewell')
+                  'farewell',
+                  'items',
+                  'sections',
+                  )
+
+    def get_sections(self, instance):
+        sections = Survey.objects.get(id=instance.id).get_sections_in_order()
+        sections_serializer = SectionSerializer(sections, many=True)
+        if len(sections_serializer.data) > 0:
+            return sections_serializer.data
+
+    def get_items(self, instance):
+        items = Survey.objects.get(id=instance.id).get_items_in_order()
+        items_serializer = ItemGetSerializer(items, many=True)
+        if len(items_serializer.data) > 0:
+            return items_serializer.data
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -57,6 +84,7 @@ class ItemPatchSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
     options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
+
     type_map = {
         1: 'list',
         2: 'gridSingle',
@@ -73,17 +101,10 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'survey', 'section', 'type', 'required', 'questions', 'options']
+        fields = ['id', 'required', 'questions', 'options']
 
     def get_type_display(self, obj) -> int:
         return [key for key, value in self.type_map.items() if value == self.context['type']][0]
-
-    def validate(self, attrs):
-        if attrs['type'] not in self.type_map:
-            raise serializers.ValidationError('Invalid type')
-        else:
-            attrs['type'] = self.type_map[attrs['type']]
-        return attrs
 
     def create(self, validated_data):
         questions = validated_data.pop('questions')
@@ -123,6 +144,46 @@ class ItemSerializer(serializers.ModelSerializer):
         instance.__dict__.update(**validated_data)
         instance.save()
         return instance
+
+
+class ItemGetSerializer(serializers.ModelSerializer):
+    questions = QuestionSerializer(many=True)
+    options = OptionSerializer(many=True)
+    preconditions = serializers.SerializerMethodField(read_only=True)
+    type = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Item
+        fields = ['id', 'required', 'questions', 'options', 'preconditions', 'type']
+
+    def get_type(self, instance):
+        return ItemSerializer.type_map[instance.type]
+
+    def get_questions(self, instance):
+        questions = Question.objects.filter(item_id=instance.id).order_by('order')
+        return QuestionSerializer(questions, many=True).data
+
+    def get_options(self, instance):
+        options = Option.objects.filter(item_id=instance.id)
+        return OptionSerializer(options, many=True).data
+
+    def get_preconditions(self, instance):
+        preconditions = Precondition.objects.filter(item_id=instance.id)
+        preconditions_serializer = PreconditionSerializer(preconditions, many=True)
+        if len(preconditions_serializer.data) > 0:
+            return preconditions_serializer.data
+
+
+class QuestionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Question
+        fields = ('id', 'order', 'value')
+
+
+class OptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Option
+        fields = ['id', 'content']
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

@@ -1,7 +1,8 @@
 from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
-from .serializers import SurveySerializer, ItemSerializer, ItemPatchSerializer, QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
+from rest_framework.decorators import action
+from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -10,15 +11,14 @@ from django.conf import settings
 from django.urls import reverse
 
 
-
 class SurveyViewSet(ModelViewSet):
     queryset = Survey.objects.all()
     serializer_class = SurveySerializer
-    lookup_field = 'survey_id'
+    lookup_url_kwarg = 'survey_id'
 
     def list(self, request, *args, **kwargs):
         surveys = Survey.objects.all()
-        serializer = SurveySerializer(surveys, many=True)
+        serializer = self.get_serializer(surveys, many=True)
         return Response(serializer.data)
 
     def create(self, request, *args, **kwargs):
@@ -26,11 +26,17 @@ class SurveyViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
-        return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED, headers=headers)
+        return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
+                        headers=headers)
 
-    def retrieve(self, request, *args, **kwargs):
-        pass
+    @action(detail=False, methods=['GET'], name='Get surveys by creator')
+    def retrieve_brief(self, request, *args, **kwargs):
+        surveys = Survey.objects.filter(creator_id=kwargs['creator_id'])
+        serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
+        return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
 
+
+    # check if defalt update works with that kwarg
     def update(self, request, *args, **kwargs):
         """
         # update survey by its id
@@ -76,17 +82,19 @@ class SurveyViewSet(ModelViewSet):
                       html_message=html_message,
                       fail_silently=False)
             return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_200_OK)
-        except Exception:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
-            return Response({'status': 'Not sent', 'survey_id': survey_id}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
+            return Response({'status': 'Not sent', 'survey_id': survey_id, 'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ItemViewSet(ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
+    lookup_url_kwarg = 'item_id'
 
-    def questions_ids_dictionary(self, questions):
+    @staticmethod
+    def questions_ids_dictionary(questions):
         dictionary = {}
-        for question in questions: # type: Question
+        for question in questions:  # type: Question
             dictionary[question.order] = question.id
         return dictionary
 
@@ -102,7 +110,7 @@ class ItemViewSet(ModelViewSet):
         # headers = self.get_success_headers(serializer.data)
         return Response({'status': 'created item',
                          'item_id': serializer.data.get('id'),
-                         'questions_ids': self.questions_ids_dictionary(serializer.context['questions'])},
+                         'questions_ids': ItemViewSet.questions_ids_dictionary(serializer.context['questions'])},
                         status=status.HTTP_201_CREATED)
 
     def list(self, request, *args, **kwargs):
@@ -163,6 +171,7 @@ class SectionViewSet(ModelViewSet):
     def list(self, request, *args, **kwargs):
         pass
 
+
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
         serializer.context['survey_id'] = kwargs.get('survey_id')
@@ -212,3 +221,4 @@ class OptionViewSet(ModelViewSet):
             self.perform_update(serializer)
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
