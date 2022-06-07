@@ -52,6 +52,7 @@ class ItemViewSet(ModelViewSet):
     serializer_class = ItemSerializer
     lookup_url_kwarg = 'item_id'
 
+    @staticmethod
     def questions_ids_dictionary(self, questions):
         dictionary = {}
         for question in questions:  # type: Question

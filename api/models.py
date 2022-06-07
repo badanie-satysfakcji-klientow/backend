@@ -23,10 +23,22 @@ class Section(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
+    start_item = models.ForeignKey('Item', related_name='start_item', on_delete=models.CASCADE)
+    end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
 
     class Meta:
         managed = False
         db_table = 'sections'
+
+    def get_items_in_order(self):
+        items = Item.objects.filter(section=self)
+        return sorted(items, key=lambda x: x.get_first_question_order())
+
+    def get_start_question_order(self):
+        return self.start_item.get_first_question_order()
+
+    def get_survey_id(self):
+        return self.start_item.survey_id
 
 
 class Creator(models.Model):
@@ -57,17 +69,28 @@ class Survey(models.Model):
         managed = False
         db_table = 'surveys'
 
+    def get_sections_in_order(self):
+        items = Item.objects.filter(survey=self).values_list('id')
+        sections = Section.objects.filter(start_item_id__in=items).order_by()
+        return sorted(sections, key=lambda x: x.get_start_question_order())
+
+    def get_items_in_order(self):
+        items = Item.objects.filter(survey=self)
+        return sorted(items, key=lambda x: x.get_first_question_order())
+
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, on_delete=models.DO_NOTHING, db_column='survey_id')
-    section = models.ForeignKey(Section, on_delete=models.DO_NOTHING)
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 
     class Meta:
         managed = False
         db_table = 'items'
+
+    def get_first_question_order(self):
+        return Question.objects.filter(item=self).order_by('order').first().order
 
 
 class Question(models.Model):

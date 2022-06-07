@@ -28,7 +28,7 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
 
 class SurveySerializer(serializers.ModelSerializer):
     sections = serializers.SerializerMethodField(read_only=True)
-    non_section_items = serializers.SerializerMethodField(read_only=True)
+    items = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model = Survey
@@ -43,21 +43,20 @@ class SurveySerializer(serializers.ModelSerializer):
                   'anonymous',
                   'greeting',
                   'farewell',
-                  'non_section_items',
+                  'items',
                   'sections',
                   )
 
     def get_sections(self, instance):
-        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
-
-        sections = Section.objects.filter(start_item_id__in=items_list)
+        sections = Survey.objects.get(id=instance.id).get_sections_in_order()
         sections_serializer = SectionSerializer(sections, many=True)
         return sections_serializer.data
 
-    def get_non_section_items(self, instance):
-        items = Item.objects.filter(survey_id=instance.id, section_id=None)
+    def get_items(self, instance):
+        items = Survey.objects.get(id=instance.id).get_items_in_order()
         items_serializer = ItemSerializer(items, many=True)
-        return items_serializer.data
+        if len(items_serializer.data) > 0:
+            return items_serializer.data
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -132,22 +131,9 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 class SectionSerializer(serializers.ModelSerializer):
-    items = serializers.SerializerMethodField(read_only=True)
-
     class Meta:
         model = Section
-        fields = ['title', 'description', 'items']
-
-    def get_items(self, instance):
-        survey_id = instance.start_item.survey_id
-        all_items_query = Item.objects.filter(survey_id=survey_id).only('id').all()
-        survey_items_query = Question.objects.filter(item_id__in=all_items_query)\
-            .filter(order__gte=Question.objects.filter(item_id=instance.start_item_id).order_by('order')[0].order)\
-            .filter(order__lte=Question.objects.filter(item_id=instance.end_item_id).order_by('-order')[0].order)\
-            .order_by('order')
-        items = Item.objects.filter(id__in=survey_items_query.values_list('item_id', flat=True))
-        items_serializer = ItemSerializer(items, many=True)
-        return items_serializer.data
+        fields = ['title', 'description', 'start_item', 'end_item']
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
