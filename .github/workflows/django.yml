@@ -34,6 +34,7 @@ jobs:
         echo EMAIL_HOST_PASSWORD='{{secrets.EMAIL_HOST_PASSWORD}}' >> backend/.env
         echo DEFAULT_FROM_EMAIL='{{secrets.DEFAULT_FROM_EMAIL}}' >> backend/.env
         echo DOMAIN_NAME='{{secrets.DOMAIN_NAME}}' >> backend/.env
+        cat backend/.env
     - name: Lint with flake8
       uses: py-actions/flake8@v2
     - name: Coverage report

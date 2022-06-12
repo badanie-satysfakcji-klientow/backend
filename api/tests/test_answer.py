@@ -6,6 +6,7 @@ from lorem_text import lorem
 
 # TODO: Test different types of items
 
+
 class AnswerAPITest(APITestCase):
     def setUp(self):
         self.creator = Creator.objects.create(

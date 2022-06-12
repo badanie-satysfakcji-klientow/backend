@@ -2,7 +2,8 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
-from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
+from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, \
+    QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -55,9 +56,11 @@ class SurveyViewSet(ModelViewSet):
         survey = Survey.objects.get(pk=kwargs['survey_id'])
         try:
             survey.delete()
-            return Response({'status': 'Deleted successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_204_NO_CONTENT)
+            return Response({'status': 'Deleted successfully', 'survey_id': kwargs['survey_id']},
+                            status=status.HTTP_204_NO_CONTENT)
         except Exception:
-            return Response({'status': 'Not deleted', 'survey_id': kwargs['survey_id']}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'status': 'Not deleted', 'survey_id': kwargs['survey_id']},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def send(self, request, *args, **kwargs):
         """
@@ -66,7 +69,8 @@ class SurveyViewSet(ModelViewSet):
         survey_id = kwargs['survey_id']
         survey = Survey.objects.get(pk=survey_id)
         survey_title = survey.title
-        survey_link = settings.DOMAIN_NAME + reverse('surveys-uuid', args=[survey_id]).removeprefix('/api')   # http://127.0.0.1:4200/surveys/uuid
+        # http://127.0.0.1:4200/surveys/uuid
+        survey_link = settings.DOMAIN_NAME + reverse('surveys-uuid', args=[survey_id]).removeprefix('/api')
         recipient_list = request.data['recipient_list']
 
         context = {'link': survey_link}
@@ -80,9 +84,11 @@ class SurveyViewSet(ModelViewSet):
                       recipient_list=recipient_list,
                       html_message=html_message,
                       fail_silently=False)
-            return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']}, status=status.HTTP_200_OK)
+            return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']},
+                            status=status.HTTP_200_OK)
         except Exception as e:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
-            return Response({'status': 'Not sent', 'survey_id': survey_id, 'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'status': 'Not sent', 'survey_id': survey_id, 'message': e.args},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class ItemViewSet(ModelViewSet):
@@ -137,7 +143,7 @@ class ItemViewSet(ModelViewSet):
             return Response({'status': 'updated'}, status=status.HTTP_200_OK)
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
-        
+
 class SubmissionViewSet(ModelViewSet):
     queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
@@ -148,9 +154,11 @@ class SubmissionViewSet(ModelViewSet):
         try:
             serializer.is_valid(raise_exception=True)
         except serializers.ValidationError as e:
-            return Response({'status': 'error', 'message': e.detail['non_field_errors'][0]}, status=status.HTTP_400_BAD_REQUEST)
+            return Response({'status': 'error', 'message': e.detail['non_field_errors'][0]},
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_create(serializer)
-        return Response({'status': 'success', 'submission_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+        return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
 
 
 class AnswerViewSet(ModelViewSet):
@@ -219,4 +227,3 @@ class OptionViewSet(ModelViewSet):
             self.perform_update(serializer)
             return Response(data=serializer.data, status=status.HTTP_200_OK)
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
