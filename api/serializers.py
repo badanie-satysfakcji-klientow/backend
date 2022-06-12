@@ -1,8 +1,6 @@
 from django.db.models import Max
 from rest_framework import serializers
-from .models import Answer, Creator, \
-    Interviewee, Item, Option, Precondition, \
-    Question, Section, SurveySent, Submission, Survey
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey
 
 
 class SurveyInfoSerializer(serializers.ModelSerializer):
@@ -15,7 +13,6 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
         lookup_field = 'survey_id'
         fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
                   'sections_count', 'items_count', 'questions_count')
-
 
     def get_sections_count(self, instance):
         items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
@@ -116,7 +113,8 @@ class ItemSerializer(serializers.ModelSerializer):
         if questions:
             # get max order index from questions in survey
             survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
-            max_order = Question.objects.filter(item_id__in=survey_items).aggregate(max_order=Max('order'))['max_order'] or 0
+            max_order = Question.objects.filter(item_id__in=survey_items) \
+                                        .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = []
             for question in questions:
                 max_order += 1
@@ -172,6 +170,9 @@ class ItemGetSerializer(serializers.ModelSerializer):
         preconditions_serializer = PreconditionSerializer(preconditions, many=True)
         if len(preconditions_serializer.data) > 0:
             return preconditions_serializer.data
+
+
+# TODO: fix that multiple declaration
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -275,7 +276,7 @@ class SectionSerializer(serializers.ModelSerializer):
             section.start_item_order = Question.objects.filter(item_id=section.start_item_id).first().order
             section.end_item_order = Question.objects.filter(item_id=section.end_item_id).first().order
             if section.start_item_order <= start_item_order <= section.end_item_order or \
-               section.start_item_order <= end_item_order <= section.end_item_order:
+                    section.start_item_order <= end_item_order <= section.end_item_order:
                 raise serializers.ValidationError('Sections overlap')
 
         return attrs
