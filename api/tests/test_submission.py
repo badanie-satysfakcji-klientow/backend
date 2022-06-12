@@ -1,8 +1,9 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from api.models import Creator, Survey, Item, Option, Interviewee, Submission
+from api.models import Creator, Survey, Interviewee, Submission
 from lorem_text import lorem
+
 
 class SubmissionAPITest(APITestCase):
     def setUp(self):

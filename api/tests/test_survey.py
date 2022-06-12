@@ -2,7 +2,6 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 from api.models import Creator, Survey
-from api.serializers import SurveySerializer
 # needs lorem-text package
 # pip install lorem-text
 from lorem_text import lorem
