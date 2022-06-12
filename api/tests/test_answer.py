@@ -63,6 +63,7 @@ class AnswerAPITest(APITestCase):
 
     def test_can_create_answer(self):
         url = reverse('questions-answer', kwargs={'question_id': self.question.id})
+        # TODO: Resolve that conflict
         response = self.client.post(url, self.answer_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

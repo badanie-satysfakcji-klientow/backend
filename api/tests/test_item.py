@@ -35,7 +35,7 @@ class ItemAPITest(APITestCase):
         }
 
     def test_can_create_item(self):
-        url = reverse('items')
+        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, self.item_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -48,6 +48,7 @@ class ItemAPITest(APITestCase):
             survey_id=self.survey.id,
         )
         url = reverse('items-uuid', kwargs={'item_id': item.id})
+        #TODO: Resolve that conflict
         response = self.client.patch(url, {'type': 2, 'required': False})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -60,7 +61,7 @@ class ItemAPITest(APITestCase):
             required=True,
             survey_id=self.survey.id,
         )
-        url = reverse('items')
+        url = reverse('items-uuid', kwargs={'item_id': item.id})
         response = self.client.delete(url, {'id': item.id})
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
