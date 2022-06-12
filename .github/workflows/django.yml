@@ -38,7 +38,7 @@ jobs:
       uses: py-actions/flake8@v2
     - name: Coverage report
       run: |
-        pip install coverage, lorem-text
+        pip install coverage lorem-text
         coverage run manage.py test
         coverage report
     - name: Django tests
