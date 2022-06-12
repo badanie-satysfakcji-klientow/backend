@@ -173,6 +173,8 @@ class ItemGetSerializer(serializers.ModelSerializer):
         if len(preconditions_serializer.data) > 0:
             return preconditions_serializer.data
 
+# TODO: fix that multiple declaration
+
 
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:

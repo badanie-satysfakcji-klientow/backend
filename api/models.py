@@ -15,7 +15,6 @@ class Option(models.Model):
     content = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'options'
 
 
@@ -27,7 +26,6 @@ class Section(models.Model):
     end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
 
     class Meta:
-        managed = False
         db_table = 'sections'
 
     def get_items_in_order(self):
@@ -48,7 +46,6 @@ class Creator(models.Model):
     phone = models.CharField(max_length=18, blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'creators'
 
 
@@ -66,7 +63,6 @@ class Survey(models.Model):
     farewell = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'surveys'
 
     def get_sections_in_order(self):
@@ -86,7 +82,6 @@ class Item(models.Model):
     required = models.BooleanField()
 
     class Meta:
-        managed = False
         db_table = 'items'
 
     def get_first_question_order(self):
@@ -101,7 +96,6 @@ class Question(models.Model):
     value = models.TextField()
 
     class Meta:
-        managed = False
         db_table = 'questions'
 
 
@@ -114,7 +108,6 @@ class Answer(models.Model):
     submission = models.ForeignKey('Submission', models.CASCADE)
 
     class Meta:
-        managed = False
         db_table = 'answers'
 
 
@@ -123,7 +116,6 @@ class Answer(models.Model):
 #     interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
 #
 #     class Meta:
-#         managed = False
 #         db_table = 'creators_interviewees'
 
 
@@ -134,7 +126,6 @@ class Interviewee(models.Model):
     last_name = models.CharField(max_length=63, blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'interviewees'
 
 
@@ -144,7 +135,6 @@ class SurveySent(models.Model):
     interviewee_id = models.UUIDField()
 
     class Meta:
-        managed = False
         db_table = 'survey_sent'
 
 
@@ -155,7 +145,6 @@ class Precondition(models.Model):
     next_item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions_next')
 
     class Meta:
-        managed = False
         db_table = 'preconditions'
 
 
@@ -166,5 +155,4 @@ class Submission(models.Model):
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'survey_submissions'

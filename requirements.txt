@@ -1,3 +1,4 @@
 django-environ
-Django
+Django>=4.0.0
 djangorestframework
+django-background-tasks

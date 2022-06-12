@@ -35,8 +35,7 @@ class SurveyViewSet(ModelViewSet):
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
 
-
-    # check if defalt update works with that kwarg
+    # check if default update works with that kwarg
     def update(self, request, *args, **kwargs):
         """
         # update survey by its id
@@ -170,7 +169,6 @@ class SectionViewSet(ModelViewSet):
 
     def list(self, request, *args, **kwargs):
         pass
-
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
