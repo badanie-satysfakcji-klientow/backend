@@ -44,6 +44,12 @@ class AnswerAPITest(APITestCase):
             item_id=self.item.id,
         )
 
+        self.question2 = Question.objects.create(
+            order=2,
+            value=lorem.words(5),
+            item_id=self.item.id,
+        )
+
         self.option = Option.objects.create(
             content=lorem.words(5),
             item_id=self.item.id,
@@ -56,6 +62,7 @@ class AnswerAPITest(APITestCase):
 
         self.answer_data = {
             'submission': self.submission.id,
+            'question': self.question.id,
             'content_character': lorem.words(5),
         }
 
@@ -68,3 +75,29 @@ class AnswerAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Answer.objects.count(), 1)
+
+    def test_can_get_answers_count(self):
+        url = reverse('submissions-get-count', kwargs={'survey_id': self.survey.id})
+
+        for i in range(0, 10):
+            Answer.objects.create(
+                submission=self.submission,
+                question=self.question,
+                content_character=lorem.words(5),
+            )
+
+        for i in range(0, 5):
+            Answer.objects.create(
+                submission=self.submission,
+                question=self.question2,
+                content_character=lorem.words(5),
+            )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        content = response.json()['answers_count']
+        self.assertEqual(len(response.json()['answers_count']), 2)
+        for i in content:
+            self.assertEqual(i['count'], Answer.objects.filter(question=i['id']).count())
