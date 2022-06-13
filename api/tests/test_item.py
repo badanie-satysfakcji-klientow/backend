@@ -48,7 +48,7 @@ class ItemAPITest(APITestCase):
             survey_id=self.survey.id,
         )
         url = reverse('items-uuid', kwargs={'item_id': item.id})
-        #TODO: Resolve that conflict
+        # TODO: Resolve that conflict
         response = self.client.patch(url, {'type': 2, 'required': False})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
