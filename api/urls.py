@@ -1,7 +1,10 @@
 from django.urls import path
-
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
+<<<<<<< HEAD
     QuestionViewSet, OptionViewSet, AnswersCountViewSet
+=======
+    QuestionViewSet, OptionViewSet, ResultViewSet
+>>>>>>> 7ce42dd (some get results init)
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -10,8 +13,12 @@ urlpatterns = [
          SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),
     path('api/surveys/<uuid:survey_id>/send', SurveyViewSet.as_view({'post': 'send'})),
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
+<<<<<<< HEAD
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
+=======
+    path('api/surveys/<uuid:survey_id>/results', ResultViewSet.as_view({'get': 'list'}), name='results'),
+>>>>>>> 7ce42dd (some get results init)
     path('api/surveys/<uuid:survey_id>',
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),
@@ -20,9 +27,15 @@ urlpatterns = [
          ItemViewSet.as_view({'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='items-uuid'),
     # path('api/items', ItemViewSet.as_view({'get': 'list'})),
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
+<<<<<<< HEAD
     path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})),
     path('api/options/<uuid:option_id>',
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
+=======
+    path('api/questions/<uuid:question_id>/results', ResultViewSet.as_view({'get': 'retrieve'})),
+    path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update'})),
+    path('api/options/<uuid:option_id>', OptionViewSet.as_view({'patch': 'partial_update'}), name='options-uuid'),
+>>>>>>> 7ce42dd (some get results init)
     path('api/creators/<uuid:creator_id>/surveys',
          SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info')
 ]

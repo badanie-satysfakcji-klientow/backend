@@ -90,6 +90,9 @@ class Question(models.Model):
     class Meta:
         db_table = 'questions'
 
+    def get_item_type(self):
+        return self.item.type
+
 
 class Answer(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)

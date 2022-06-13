@@ -1,11 +1,12 @@
 from rest_framework import status, serializers
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet
+from rest_framework.viewsets import ModelViewSet, ViewSet
 from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer
+    AnswerQuestionCountSerializer, ResultSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section
+
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -137,12 +138,15 @@ class AnswerViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
         try:
-            serializer.is_valid(raise_exception=True)       # or just if
+            serializer.is_valid(raise_exception=True)
+            self.perform_create(serializer)
+            return Response({'status': 'success', 'answer_id': serializer.data.get('id')},
+                            status=status.HTTP_201_CREATED)
         except serializers.ValidationError as e:
             return Response({'status': 'error', 'message': e.args},
                             status=status.HTTP_400_BAD_REQUEST)
-        self.perform_create(serializer)
-        return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
+
+
 
 
 class SectionViewSet(ModelViewSet):
@@ -172,4 +176,36 @@ class QuestionViewSet(ModelViewSet):
 class OptionViewSet(ModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
+
     lookup_url_kwarg = 'option_id'
+
+    def update(self, request, *args, **kwargs):
+        """
+        # update option by its id
+        """
+        partial = kwargs.pop('partial', False)
+        instance = Option.objects.get(id=kwargs['option_id'])
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+
+class ResultViewSet(ViewSet):
+    # queryset =
+    serializer_class = ResultSerializer
+
+    def list(self, request, *args, **kwargs):
+        """
+        # get result by survey id
+        """
+        # get all the submissions for the survey
+        survey = Survey.objects.get(id=kwargs['survey_id'])
+        submissions = Submission.objects.filter(survey=survey)
+        answers = Answer.objects.filter(submission__in=submissions).values()
+
+
+        # serializer = self.serializer_class()
+        # return Response(serializer.data)
+

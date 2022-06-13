@@ -3,6 +3,9 @@ from rest_framework import serializers
 from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey
 
 
+# may be changed to: from .models import *
+
+
 class SurveyInfoSerializer(serializers.ModelSerializer):
     sections_count = serializers.SerializerMethodField()
     items_count = serializers.SerializerMethodField()
@@ -103,6 +106,13 @@ class ItemSerializer(serializers.ModelSerializer):
 
     inv_type_map = {v: k for k, v in type_map.items()}
 
+    content_map = {
+        ('list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple'): 'option',
+        ('openShort', 'openLong'): 'content_character',
+        ('scale5', 'scale10', 'scaleNPS', 'openNumeric'): 'content_numeric'
+    }
+
+
     class Meta:
         model = Item
         fields = ['id', 'required', 'questions', 'options']
@@ -193,6 +203,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = ['id', 'content_numeric', 'content_character', 'option', 'submission']
         read_only_fields = ['question']
 
+
     @staticmethod
     def del_attrs(attrs, attr_list):
         for attr in attr_list:
@@ -214,7 +225,11 @@ class AnswerSerializer(serializers.ModelSerializer):
         if Survey.objects.get(id=survey_id).paused:
             raise serializers.ValidationError('Survey is paused')
 
+        if (question := Question.objects.get(id=attrs['question'].id)) is not None:
+            attrs['question'] = question
+
         # check for item type
+
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
@@ -230,12 +245,25 @@ class AnswerSerializer(serializers.ModelSerializer):
             if not attrs['content_numeric']:
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
+
         return attrs
 
     def create(self, validated_data):
         validated_data['question_id'] = self.context['question_id']
         answer = Answer.objects.create(**validated_data)
         return answer
+
+
+# NoORM serializer for Result
+class ResultSerializer(serializers.Serializer):
+    question = QuestionSerializer(many=False)
+    answers_count = serializers.SerializerMethodField()
+
+    def get_answers_count(self, instance):
+        return Answer.objects.filter(question=self.question).distinct('content_character')
+
+    def get_question(self, instance):
+        return Question.objects.get(id=self.context['question_id'])
 
 
 class SectionSerializer(serializers.ModelSerializer):
