@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, \
-    QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer
+    QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
+    AnswerQuestionCountSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -157,8 +158,24 @@ class ItemViewSet(ModelViewSet):
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class AnswersCountViewSet(ModelViewSet):
+    serializer_class = AnswerQuestionCountSerializer
+
+    def get_queryset(self):
+        submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
+        questions_list = Answer.objects.filter(submission__in=submission_queryset).values_list('question', flat=True)
+        return Question.objects.filter(id__in=questions_list)
+
+    def list(self, request, *args, **kwargs):
+        serializer = self.get_serializer(self.get_queryset(), many=True)
+        try:
+            return Response({'status': 'OK', 'answers_count': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'status': 'Not found', 'message': e.args}, status=status.HTTP_404_NOT_FOUND)
+        pass
+
+
 class SubmissionViewSet(ModelViewSet):
-    queryset = Submission.objects.all()
     serializer_class = SubmissionSerializer
 
     def create(self, request, *args, **kwargs):

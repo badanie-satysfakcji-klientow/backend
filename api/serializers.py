@@ -66,6 +66,17 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ('id', 'order', 'value')
 
 
+class AnswerQuestionCountSerializer(serializers.ModelSerializer):
+    count = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Question
+        fields = ('id', 'order', 'value', 'count')
+
+    def get_count(self, instance):
+        return Answer.objects.filter(question_id=instance.id).count()
+
+
 class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
@@ -114,7 +125,7 @@ class ItemSerializer(serializers.ModelSerializer):
             # get max order index from questions in survey
             survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
             max_order = Question.objects.filter(item_id__in=survey_items) \
-                                        .aggregate(max_order=Max('order'))['max_order'] or 0
+                .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = []
             for question in questions:
                 max_order += 1
@@ -170,21 +181,6 @@ class ItemGetSerializer(serializers.ModelSerializer):
         preconditions_serializer = PreconditionSerializer(preconditions, many=True)
         if len(preconditions_serializer.data) > 0:
             return preconditions_serializer.data
-
-
-# TODO: fix that multiple declaration
-
-
-class QuestionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Question
-        fields = ('id', 'order', 'value')
-
-
-class OptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Option
-        fields = ['id', 'content']
 
 
 class SubmissionSerializer(serializers.ModelSerializer):

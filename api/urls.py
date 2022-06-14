@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
-    QuestionViewSet, OptionViewSet
+    QuestionViewSet, OptionViewSet, AnswersCountViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -10,6 +10,8 @@ urlpatterns = [
          SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),
     path('api/surveys/<uuid:survey_id>/send', SurveyViewSet.as_view({'post': 'send'})),
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
+    path('api/surveys/<uuid:survey_id>/submissions',
+         AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
     path('api/surveys/<uuid:survey_id>',
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),

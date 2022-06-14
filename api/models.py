@@ -90,9 +90,8 @@ class Item(models.Model):
 
 class Question(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    order = models.IntegerField(blank=True, null=True)
+    order = models.IntegerField()
     item = models.ForeignKey(Item, related_name='questions', on_delete=models.CASCADE)
-
     value = models.TextField()
 
     class Meta:
@@ -155,4 +154,4 @@ class Submission(models.Model):
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
-        db_table = 'survey_submissions'
+        db_table = 'submissions'
