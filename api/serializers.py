@@ -1,4 +1,4 @@
-from django.db.models import Max
+from django.db.models import Max, Count, Avg
 from rest_framework import serializers
 from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey
 
@@ -112,7 +112,6 @@ class ItemSerializer(serializers.ModelSerializer):
         ('scale5', 'scale10', 'scaleNPS', 'openNumeric'): 'content_numeric'
     }
 
-
     class Meta:
         model = Item
         fields = ['id', 'required', 'questions', 'options']
@@ -203,7 +202,6 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = ['id', 'content_numeric', 'content_character', 'option', 'submission']
         read_only_fields = ['question']
 
-
     @staticmethod
     def del_attrs(attrs, attr_list):
         for attr in attr_list:
@@ -255,15 +253,65 @@ class AnswerSerializer(serializers.ModelSerializer):
 
 
 # NoORM serializer for Result
-class ResultSerializer(serializers.Serializer):
-    question = QuestionSerializer(many=False)
+class SurveyResultInfoSerializer(serializers.ModelSerializer):
     answers_count = serializers.SerializerMethodField()
+    submissions_count = serializers.SerializerMethodField()
+
+    # TODO: Think of some other needed fields
+
+    class Meta:
+        model = Survey
+        fields = ['answers_count', 'submissions_count']
 
     def get_answers_count(self, instance):
-        return Answer.objects.filter(question=self.question).distinct('content_character')
+        return Submission.objects.filter(survey_id=instance.id).count()
 
-    def get_question(self, instance):
-        return Question.objects.get(id=self.context['question_id'])
+    def get_submissions_count(self, instance):
+        submissions_query = Submission.objects.filter(survey_id=instance.id).values_list('id', flat=True)
+        return Answer.objects.filter(submission_id__in=submissions_query).count()
+
+
+class SurveyResultSerializer(serializers.ModelSerializer):
+    # fields for option
+    options_count = serializers.SerializerMethodField()
+    # fields for content_character
+    common_words = serializers.SerializerMethodField()
+    # fields for content_numeric
+    mean = serializers.SerializerMethodField()
+    content_numeric_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Question
+        fields = ['id', 'order', 'value']  # id may not be needed here
+
+    def __init__(self, *args, **kwargs):
+        # delete fields conditionally
+        if self.instance.item.type not in ItemSerializer.inv_content_map['option']:
+            del self.fields['options_count']
+        elif self.instance.item.type not in ItemSerializer.inv_content_map['content_character']:
+            del self.fields['common_words']
+        elif self.instance.item.type not in ItemSerializer.inv_content_map['content_numeric']:
+            del self.fields['mean']
+            del self.fields['content_numeric_count']
+        super().__init__(*args, **kwargs)
+
+    def get_options_count(self, instance):
+        # answers_query = Answer.objects.filter(question_id=instance.id).values_list('id', flat=True)
+        pass
+
+    def get_common_words(self, instance):
+        pass
+
+    def get_mean(self, instance):
+        count_query = Answer.objects.filter(question_id=instance.id).aggregate(Avg('content_numeric'))
+        return count_query['content_numeric__avg']
+
+    def get_content_numeric_count(self, instance):
+        count_query = Answer.objects.filter(question_id=instance.id)\
+            .values('content_numeric')\
+            .order_by('content_numeric')\
+            .annotate(count=Count('content_numeric'))
+        return count_query
 
 
 class SectionSerializer(serializers.ModelSerializer):

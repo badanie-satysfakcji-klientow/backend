@@ -1,7 +1,6 @@
 from django.urls import path
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
-    QuestionViewSet, OptionViewSet, AnswersCountViewSet, ResultViewSet
-
+    QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -12,7 +11,7 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
-    path('api/surveys/<uuid:survey_id>/results', ResultViewSet.as_view({'get': 'list'}), name='results'),
+    path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
     path('api/surveys/<uuid:survey_id>',
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),
@@ -21,9 +20,12 @@ urlpatterns = [
          ItemViewSet.as_view({'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='items-uuid'),
     # path('api/items', ItemViewSet.as_view({'get': 'list'})),
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
+    path('api/questions/<uuid:question_id>/results',
+         SurveyResultViewSet.as_view({'get': 'list'}), name='questions-results'),
     path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})),
     path('api/options/<uuid:option_id>',
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
+
     path('api/creators/<uuid:creator_id>/surveys',
          SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info')
 ]

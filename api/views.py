@@ -1,12 +1,12 @@
 from rest_framework import status, serializers
 from rest_framework.response import Response
-from rest_framework.viewsets import ModelViewSet, ViewSet
+from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
+
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer, ResultSerializer
+    AnswerQuestionCountSerializer, SurveyResultSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section
-
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -147,8 +147,6 @@ class AnswerViewSet(ModelViewSet):
                             status=status.HTTP_400_BAD_REQUEST)
 
 
-
-
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
     queryset = Section.objects.all()
@@ -192,20 +190,29 @@ class OptionViewSet(ModelViewSet):
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class ResultViewSet(ViewSet):
-    # queryset =
-    serializer_class = ResultSerializer
+class SurveyResultViewSet(ModelViewSet):
+    serializer_class = SurveyResultSerializer
+    queryset = Question.objects.all()
+
+    def retrieve(self, request, *args, **kwargs):
+        survey = self.get_queryset().get(id=kwargs['question_id'])
+        serializer = SurveyResultSerializer(survey)
+        try:
+            return Response({'status': 'OK', 'question_results': serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'status': 'error', 'message': e.args}, status=status.HTTP_400_BAD_REQUEST)
 
     def list(self, request, *args, **kwargs):
         """
         # get result by survey id
         """
-        # get all the submissions for the survey
-        survey = Survey.objects.get(id=kwargs['survey_id'])
-        submissions = Submission.objects.filter(survey=survey)
-        answers = Answer.objects.filter(submission__in=submissions).values()
-
-
-        # serializer = self.serializer_class()
-        # return Response(serializer.data)
-
+        # get all question results for a survey
+        result_info_serializer = self.get_serializer(self.get_queryset().get(id=self.kwargs['survey_id']), many=False)
+        result_serializer = SurveyResultSerializer(Question.objects.filter(survey=kwargs['survey_id']), many=True)
+        try:
+            return Response({'status': 'OK',
+                             'results_info': result_info_serializer.data,
+                             'results': result_serializer.data},
+                            status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response({'status': 'error', 'message': e.args}, status=status.HTTP_400_BAD_REQUEST)
