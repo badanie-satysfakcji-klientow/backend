@@ -143,6 +143,19 @@ class ItemViewSet(ModelViewSet):
             return Response({'status': 'updated'}, status=status.HTTP_200_OK)
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
+    def destroy(self, request, *args, **kwargs):
+        """
+        # delete item by its id
+        """
+        item = Item.objects.get(pk=kwargs['item_id'])
+        try:
+            item.delete()
+            return Response({'status': 'Deleted successfully', 'item_id': kwargs['item_id']},
+                            status=status.HTTP_204_NO_CONTENT)
+        except Exception as e:
+            return Response({'status': 'Not deleted', 'item_id': kwargs['item_id'], 'message': e.args},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
 
 class SubmissionViewSet(ModelViewSet):
     queryset = Submission.objects.all()
