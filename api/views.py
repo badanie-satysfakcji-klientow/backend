@@ -42,11 +42,14 @@ class SurveyViewSet(ModelViewSet):
         """
         # update survey by its id
         """
-        partial = kwargs.pop('partial', False)
+        partial = kwargs.pop('partial', True)
         instance = Survey.objects.get(id=kwargs['survey_id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
-            self.perform_update(serializer)
+            try:
+                self.perform_update(serializer)
+            except serializers.ValidationError:
+                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
             return Response({'status': 'updated'}, status=status.HTTP_200_OK)
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -97,13 +100,6 @@ class ItemViewSet(ModelViewSet):
     serializer_class = ItemSerializer
     lookup_url_kwarg = 'item_id'
 
-    @staticmethod
-    def questions_ids_dictionary(questions):
-        dictionary = {}
-        for question in questions:  # type: Question
-            dictionary[question.order] = question.id
-        return dictionary
-
     def create(self, request, *args, **kwargs) -> Response:
         """
         # save survey question by its id
@@ -116,7 +112,7 @@ class ItemViewSet(ModelViewSet):
         # headers = self.get_success_headers(serializer.data)
         return Response({'status': 'created item',
                          'item_id': serializer.data.get('id'),
-                         'questions_ids': ItemViewSet.questions_ids_dictionary(serializer.context['questions'])},
+                         'questions_ids': serializer.context['questions']},
                         status=status.HTTP_201_CREATED)
 
     def list(self, request, *args, **kwargs):
@@ -198,6 +194,11 @@ class AnswerViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
+        try:
+            serializer.is_valid(raise_exception=True)
+        except serializers.ValidationError as e:
+            return Response({'status': 'error', 'message': e.args},
+                            status=status.HTTP_400_BAD_REQUEST)
         self.perform_create(serializer)
         return Response({'status': 'success', 'answer_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED)
 

@@ -3,6 +3,8 @@
 
 #.vscode # to zostawiłem żeby każdy miał taki sam config ale jak będą jakieś problemy to trzeba odkomentować
 
+# postman
+/postman
 
 # angular
 /dist

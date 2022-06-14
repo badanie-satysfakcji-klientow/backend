@@ -14,6 +14,16 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
                   'sections_count', 'items_count', 'questions_count')
 
+    def update(self, instance, validated_data):
+        instance.title = validated_data.get('title', instance.title)
+        instance.description = validated_data.get('description', instance.description)
+        instance.anonymous = validated_data.get('anonymous', instance.anonymous)
+        instance.starts_at = validated_data.get('starts_at', instance.starts_at)
+        instance.expires_at = validated_data.get('expires_at', instance.expires_at)
+        instance.paused = validated_data.get('paused', instance.paused)
+        instance.save()
+        return instance
+
     def get_sections_count(self, instance):
         items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
         return Section.objects.filter(start_item_id__in=items_list).count()
@@ -66,6 +76,12 @@ class QuestionSerializer(serializers.ModelSerializer):
         fields = ('id', 'order', 'value')
 
 
+class OptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Option
+        fields = ['id', 'content']
+
+
 class AnswerQuestionCountSerializer(serializers.ModelSerializer):
     count = serializers.SerializerMethodField(read_only=True)
 
@@ -77,21 +93,16 @@ class AnswerQuestionCountSerializer(serializers.ModelSerializer):
         return Answer.objects.filter(question_id=instance.id).count()
 
 
-class OptionSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Option
-        fields = ['id', 'content']
-
-
+# TODO: check if this is needed
 class ItemPatchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Item
-        fields = ['id', 'survey', 'section', 'type', 'required']
+        fields = ['id', 'survey', 'type', 'required']
 
 
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
-    options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True)
+    options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True, required=False)
 
     type_map = {
         1: 'list',
@@ -116,7 +127,11 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         questions = validated_data.pop('questions')
-        options = validated_data.pop('options')
+        # case when no option is needed (e.g. numeric)
+        try:
+            options = validated_data.pop('options')
+        except KeyError:
+            options = None
         validated_data['survey_id'] = self.context['survey_id']
         type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
         validated_data['type'] = type_map_key
@@ -126,12 +141,12 @@ class ItemSerializer(serializers.ModelSerializer):
             survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
-            self.context['questions'] = []
+            self.context['questions'] = {}
             for question in questions:
                 max_order += 1
                 obj = {'item_id': item.id, 'order': max_order, 'value': question}
                 question = Question.objects.create(**obj)
-                self.context.get('questions').append(question)
+                self.context['questions'][max_order] = question.id
 
         if options:
             for option in options:
@@ -141,7 +156,11 @@ class ItemSerializer(serializers.ModelSerializer):
 
     def update(self, instance, validated_data):
         questions = validated_data.pop('questions')
-        options = validated_data.pop('options')
+        # case when no option is needed (e.g. numeric)
+        try:
+            options = validated_data.pop('options')
+        except KeyError:
+            options = None
         type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
         validated_data['type'] = type_map_key
         if questions:
@@ -204,7 +223,8 @@ class AnswerSerializer(serializers.ModelSerializer):
         fields = ['id', 'content_numeric', 'content_character', 'option', 'submission']
         read_only_fields = ['question']
 
-    def del_attrs(self, attrs, attr_list):
+    @staticmethod
+    def del_attrs(attrs, attr_list):
         for attr in attr_list:
             if hasattr(attrs, attr):
                 delattr(attrs, attr)

@@ -20,20 +20,20 @@ class AnswerAPITest(APITestCase):
             last_name='Doe',
         )
 
-        self.survey = Survey.objects.create(**{
-            'title': lorem.words(5),
-            'description': lorem.sentence(),
-            'creator_id': self.creator,
-            'starts_at': '2022-06-02T04:20:00Z',
-            'expires_at': '2023-06-22T02:26:22Z',
-            'paused': False,
-            'anonymous': False,
-            'greeting': 'Hi there!',
-            'farewell': lorem.words(2)
-        })
+        self.survey = Survey.objects.create(
+            title=lorem.words(5),
+            description=lorem.sentence(),
+            creator_id=self.creator,
+            starts_at='2022-06-02T04:20:00Z',
+            expires_at='2023-06-22T02:26:22Z',
+            paused=False,
+            anonymous=False,
+            greeting='Hi there!',
+            farewell=lorem.words(2)
+        )
 
         self.item = Item.objects.create(
-            type=1,
+            type=8,
             required=True,
             survey_id=self.survey.id,
         )
