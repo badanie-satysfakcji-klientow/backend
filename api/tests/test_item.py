@@ -29,9 +29,10 @@ class ItemAPITest(APITestCase):
         })
 
         self.item_data = {
-            'type': 1,
+            'type': 'openShort',
             'required': True,
             'survey_id': self.survey.id,
+            'questions': ["What is your name?", "What is your age?"]
         }
 
     def test_can_create_item(self):

@@ -42,7 +42,7 @@ class SurveyViewSet(ModelViewSet):
         """
         # update survey by its id
         """
-        partial = kwargs.pop('partial', True)
+        partial = kwargs.pop('partial', False)
         instance = Survey.objects.get(id=kwargs['survey_id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():

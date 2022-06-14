@@ -14,16 +14,6 @@ class SurveyInfoSerializer(serializers.ModelSerializer):
         fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
                   'sections_count', 'items_count', 'questions_count')
 
-    def update(self, instance, validated_data):
-        instance.title = validated_data.get('title', instance.title)
-        instance.description = validated_data.get('description', instance.description)
-        instance.anonymous = validated_data.get('anonymous', instance.anonymous)
-        instance.starts_at = validated_data.get('starts_at', instance.starts_at)
-        instance.expires_at = validated_data.get('expires_at', instance.expires_at)
-        instance.paused = validated_data.get('paused', instance.paused)
-        instance.save()
-        return instance
-
     def get_sections_count(self, instance):
         items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
         return Section.objects.filter(start_item_id__in=items_list).count()
@@ -118,6 +108,8 @@ class ItemSerializer(serializers.ModelSerializer):
         11: 'closedMultiple'
     }
 
+    inv_type_map = {v: k for k, v in type_map.items()}
+
     class Meta:
         model = Item
         fields = ['id', 'required', 'questions', 'options']
@@ -133,7 +125,7 @@ class ItemSerializer(serializers.ModelSerializer):
         except KeyError:
             options = None
         validated_data['survey_id'] = self.context['survey_id']
-        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+        type_map_key = self.inv_type_map[self.context['type']]
         validated_data['type'] = type_map_key
         item = Item.objects.create(**validated_data)
         if questions:
