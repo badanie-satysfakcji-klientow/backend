@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission
+from .models import Survey, Item, Question, Option, Answer, Submission, Section
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -18,14 +18,9 @@ class SurveyViewSet(ModelViewSet):
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
-    def list(self, request, *args, **kwargs):   # unnecessary
-        surveys = Survey.objects.all()
-        serializer = self.get_serializer(surveys, many=True)
-        return Response(serializer.data)
-
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)       # if
+        serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         headers = self.get_success_headers(serializer.data)
         return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
@@ -36,35 +31,6 @@ class SurveyViewSet(ModelViewSet):
         surveys = Survey.objects.filter(creator_id=kwargs['creator_id'])
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
-
-    # check if default update works with that kwarg
-    def update(self, request, *args, **kwargs):     # unnecessary, need pk kwarg
-        """
-        # update survey by its id
-        """
-        partial = kwargs.pop('partial', False)
-        instance = Survey.objects.get(id=kwargs['survey_id'])
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            try:
-                self.perform_update(serializer)
-            except serializers.ValidationError:
-                return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-            return Response({'status': 'updated'}, status=status.HTTP_200_OK)
-        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, *args, **kwargs):    # unnecessary
-        """
-        # delete survey by its id
-        """
-        survey = Survey.objects.get(pk=kwargs['survey_id'])
-        try:
-            survey.delete()
-            return Response({'status': 'Deleted successfully', 'survey_id': kwargs['survey_id']},
-                            status=status.HTTP_204_NO_CONTENT)
-        except Exception:
-            return Response({'status': 'Not deleted', 'survey_id': kwargs['survey_id']},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
     def send(self, request, *args, **kwargs):       # send_mail -> send_mass_mail
         """
@@ -114,44 +80,6 @@ class ItemViewSet(ModelViewSet):
                          'item_id': serializer.data.get('id'),
                          'questions_ids': serializer.context['questions']},
                         status=status.HTTP_201_CREATED)
-
-    def list(self, request, *args, **kwargs):     # unnecessary
-        items = Item.objects.all()
-        serializer = ItemSerializer(items, many=True)
-        return Response(serializer.data)
-
-    def update(self, request, *args, **kwargs):     # unnecessary
-        """
-        # update item by its id
-        """
-        partial = kwargs.pop('partial', False)
-        instance = Item.objects.get(id=kwargs['item_id'])
-        if partial:
-            serializer = ItemPatchSerializer(instance, data=request.data, partial=partial)
-            if serializer.is_valid():
-                self.perform_update(serializer)
-                return Response({'status': 'updated'}, status=status.HTTP_200_OK)
-            return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        # serializer.context['type'] = request.data.get('type')
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response({'status': 'updated'}, status=status.HTTP_200_OK)
-        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
-    def destroy(self, request, *args, **kwargs):     # unnecessary
-        """
-        # delete item by its id
-        """
-        item = Item.objects.get(pk=kwargs['item_id'])
-        try:
-            item.delete()
-            return Response({'status': 'Deleted successfully', 'item_id': kwargs['item_id']},
-                            status=status.HTTP_204_NO_CONTENT)
-        except Exception as e:
-            return Response({'status': 'Not deleted', 'item_id': kwargs['item_id'], 'message': e.args},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 class AnswersCountViewSet(ModelViewSet):
@@ -205,9 +133,7 @@ class AnswerViewSet(ModelViewSet):
 
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
-
-    def list(self, request, *args, **kwargs):     # unnecessary
-        pass
+    queryset = Section.objects.all()
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -222,39 +148,14 @@ class SectionViewSet(ModelViewSet):
                          'section_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
 
-    def retrieve(self, request, *args, **kwargs):     # unnecessary
-        pass
-
 
 class QuestionViewSet(ModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
-
-    def update(self, request, *args, **kwargs):     # unnecessary -- question_id -> pk
-        """
-        # update question by its id
-        """
-        partial = kwargs.pop('partial', False)
-        instance = Question.objects.get(id=kwargs['question_id'])
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
-        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+    lookup_url_kwarg = 'question_id'
 
 
 class OptionViewSet(ModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
-
-    def update(self, request, *args, **kwargs):     # unnecessary -- option_id -> pk
-        """
-        # update option by its id
-        """
-        partial = kwargs.pop('partial', False)
-        instance = Option.objects.get(id=kwargs['option_id'])
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
-        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+    lookup_url_kwarg = 'option_id'

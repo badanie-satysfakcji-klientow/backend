@@ -20,8 +20,8 @@ urlpatterns = [
          ItemViewSet.as_view({'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='items-uuid'),
     # path('api/items', ItemViewSet.as_view({'get': 'list'})),
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
-    path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update'})),
-    path('api/options/<uuid:option_id>', OptionViewSet.as_view({'patch': 'partial_update'}), name='options-uuid'),
+    path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})),
+    path('api/options/<uuid:option_id>', OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
     path('api/creators/<uuid:creator_id>/surveys',
          SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info')
 ]

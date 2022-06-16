@@ -143,24 +143,24 @@ class ItemSerializer(serializers.ModelSerializer):
 
         return item
 
-    def update(self, instance, validated_data):
-        questions = validated_data.pop('questions')
-        # case when no option is needed (e.g. numeric)
-        try:
-            options = validated_data.pop('options')
-        except KeyError:
-            options = None
-        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
-        validated_data['type'] = type_map_key
-        if questions:
-            Question.objects.filter(item=instance).delete()
-            Question.objects.bulk_create([Question(item=instance, **q) for q in questions])
-        if options:
-            Option.objects.filter(item=instance).delete()
-            Option.objects.bulk_create([Option(item=instance, **o) for o in options])
-        instance.__dict__.update(**validated_data)
-        instance.save()
-        return instance
+    # def update(self, instance, validated_data):            # unnecessary
+    #     questions = validated_data.pop('questions')
+    #     # case when no option is needed (e.g. numeric)
+    #     try:
+    #         options = validated_data.pop('options')
+    #     except KeyError:
+    #         options = None
+    #     type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+    #     validated_data['type'] = type_map_key
+    #     if questions:
+    #         Question.objects.filter(item=instance).delete()
+    #         Question.objects.bulk_create([Question(item=instance, **q) for q in questions])
+    #     if options:
+    #         Option.objects.filter(item=instance).delete()
+    #         Option.objects.bulk_create([Option(item=instance, **o) for o in options])
+    #     instance.__dict__.update(**validated_data)
+    #     instance.save()
+    #     return instance
 
 
 class ItemGetSerializer(serializers.ModelSerializer):
