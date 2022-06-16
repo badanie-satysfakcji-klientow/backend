@@ -81,6 +81,20 @@ class ItemViewSet(ModelViewSet):
                          'questions_ids': serializer.context['questions']},
                         status=status.HTTP_201_CREATED)
 
+    def update(self, request, *args, **kwargs):     # unnecessary
+        """
+        # update item by its id
+        """
+        partial = kwargs.pop('partial', False)
+        instance = Item.objects.get(id=kwargs['item_id'])
+        if partial:
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.context['type'] = request.data.get('type')
+            if serializer.is_valid():
+                self.perform_update(serializer)
+                return Response({'status': 'updated'}, status=status.HTTP_200_OK)
+            return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class AnswersCountViewSet(ModelViewSet):
     serializer_class = AnswerQuestionCountSerializer
