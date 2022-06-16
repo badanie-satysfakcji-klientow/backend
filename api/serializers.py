@@ -48,13 +48,13 @@ class SurveySerializer(serializers.ModelSerializer):
                   )
 
     def get_sections(self, instance):
-        sections = Survey.objects.get(id=instance.id).get_sections_in_order()
+        sections = instance.get_sections_in_order()
         sections_serializer = SectionSerializer(sections, many=True)
         if len(sections_serializer.data) > 0:
             return sections_serializer.data
 
     def get_items(self, instance):
-        items = Survey.objects.get(id=instance.id).get_items_in_order()
+        items = instance.get_items_in_order()
         items_serializer = ItemGetSerializer(items, many=True)
         if len(items_serializer.data) > 0:
             return items_serializer.data
@@ -81,13 +81,6 @@ class AnswerQuestionCountSerializer(serializers.ModelSerializer):
 
     def get_count(self, instance):
         return Answer.objects.filter(question_id=instance.id).count()
-
-
-# TODO: check if this is needed
-class ItemPatchSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Item
-        fields = ['id', 'survey', 'type', 'required']
 
 
 class ItemSerializer(serializers.ModelSerializer):
@@ -133,7 +126,8 @@ class ItemSerializer(serializers.ModelSerializer):
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
-            questions = Question.objects.bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
+            questions = Question.objects\
+                .bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
 
             for question in questions:
                 self.context['questions'][question.order] = question.id
@@ -198,8 +192,7 @@ class SubmissionSerializer(serializers.ModelSerializer):
         read_only_fields = ['submitted_at', 'survey']
 
     def validate(self, attrs):
-        attrs['survey'] = Survey.objects.filter(id=self.context['survey_id']).first()
-
+        attrs['survey'] = Survey.objects.get(id=self.context['survey_id'])
         # check if user already submitted
         if Submission.objects.filter(survey_id=attrs['survey'].id, interviewee=attrs['interviewee'].id).exists():
             raise serializers.ValidationError('User already submitted')
@@ -220,20 +213,21 @@ class AnswerSerializer(serializers.ModelSerializer):
         return attrs
 
     def validate(self, attrs):
-        attrs['question'] = Question.objects.filter(id=self.context['question_id']).first()
+        # TODO: check if question exists
+        attrs['question'] = Question.objects.get(id=self.context['question_id'])
         # check if survey_submission contains the question
-        item_id = Question.objects.filter(id=attrs['question'].id).first().item_id
-        survey_id = Submission.objects.filter(id=attrs['submission'].id).first().survey_id
+        item_id = Question.objects.get(id=attrs['question'].id).item_id
+        survey_id = Submission.objects.get(id=attrs['submission'].id).survey_id
         objects = Item.objects.filter(survey_id=survey_id).values_list('id', flat=True)
         if item_id not in objects:
             raise serializers.ValidationError('Question not found in survey')
 
         # check if survey is paused
-        if Survey.objects.filter(id=survey_id).first().paused:
+        if Survey.objects.get(id=survey_id).paused:
             raise serializers.ValidationError('Survey is paused')
 
         # check for item type
-        item_type = ItemSerializer.type_map[Item.objects.filter(id=item_id).first().type]
+        item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
             if not attrs['option']:
@@ -264,30 +258,32 @@ class SectionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         survey_id = self.context['survey_id']
 
-        if not Item.objects.filter(survey_id=survey_id, id=attrs['start_item'].id).exists():
+        if not Item.objects.get(survey_id=survey_id, id=attrs['start_item'].id).exists():
             raise serializers.ValidationError('Start item not found')
-        if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
+        if not Item.objects.get(survey_id=survey_id, id=attrs['end_item'].id).exists():
             raise serializers.ValidationError('End item not found')
 
         # check if start_item is before end_item
-        if not (start_item_order := Question.objects.filter(item_id=attrs['start_item'].id).first().order) <= \
-               (end_item_order := Question.objects.filter(item_id=attrs['end_item'].id).first().order):
+        if not (start_item_order := Question.objects.get(item_id=attrs['start_item'].id).order) <= \
+               (end_item_order := Question.objects.get(item_id=attrs['end_item'].id).order):
             raise serializers.ValidationError('Start item must be before or equal to end item')
 
         # check if sections overlap
-        sections = Section.objects.filter(start_item_id__in=Item.objects.filter(survey_id=survey_id))
+        sections = Section.objects.prefetch_related('items')\
+            .filter(start_item_id__in=Item.objects.filter(survey_id=survey_id).only('id'))
 
         for section in sections:
-            section.start_item_order = Question.objects.filter(item_id=section.start_item_id).first().order
-            section.end_item_order = Question.objects.filter(item_id=section.end_item_id).first().order
+            section.start_item_order = Question.objects.get(item_id=section.start_item_id).order
+            section.end_item_order = Question.objects.get(item_id=section.end_item_id).order
             if section.start_item_order <= start_item_order <= section.end_item_order or \
                     section.start_item_order <= end_item_order <= section.end_item_order:
                 raise serializers.ValidationError('Sections overlap')
 
         return attrs
 
-    def update(self, instance, validated_data):
-        pass
+    # TODO: section update
+    # def update(self, instance, validated_data):
+    #     pass
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
