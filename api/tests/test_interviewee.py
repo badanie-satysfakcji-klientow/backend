@@ -25,7 +25,8 @@ class IntervieweeAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Interviewee.objects.count(), 2)
-        self.assertEqual(Interviewee.objects.first().email, self.interviewee_data['email'])
+        self.assertEqual(Interviewee.objects.filter(pk=response.data['id']).count(), 1)
+        self.assertEqual(Interviewee.objects.get(pk=response.data['id']).email, self.interviewee_data['email'])
 
     def test_can_update_interviewee(self):
         url = reverse('interviewee-uuid', kwargs={'interviewee_id': self.interviewee.id})
