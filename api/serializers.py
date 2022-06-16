@@ -112,7 +112,7 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'required', 'questions', 'options']
+        fields = ['id', 'required', 'type', 'questions', 'options']
 
     def get_type_display(self, obj) -> int:
         return [key for key, value in self.type_map.items() if value == self.context['type']][0]
