@@ -2,7 +2,7 @@ from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
-from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, \
+from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, IntervieweeSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee

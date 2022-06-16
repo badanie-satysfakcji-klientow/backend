@@ -133,7 +133,8 @@ class ItemSerializer(serializers.ModelSerializer):
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
-            questions = Question.objects.bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
+            questions = Question.objects.bulk_create([Question(item_id=item.id, order=max_order + 1, value=question)
+                                                      for question in questions])
 
             for question in questions:
                 self.context['questions'][question.order] = question.id
