@@ -125,8 +125,7 @@ class ItemSerializer(serializers.ModelSerializer):
         except KeyError:
             options = None
         validated_data['survey_id'] = self.context['survey_id']
-        type_map_key = self.inv_type_map[self.context['type']]
-        validated_data['type'] = type_map_key
+        validated_data['type'] = self.inv_type_map[self.context['type']]
         item = Item.objects.create(**validated_data)
         if questions:
             # get max order index from questions in survey
@@ -134,15 +133,13 @@ class ItemSerializer(serializers.ModelSerializer):
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
+            questions = Question.objects.bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
+
             for question in questions:
-                max_order += 1
-                obj = {'item_id': item.id, 'order': max_order, 'value': question}
-                question = Question.objects.create(**obj)
-                self.context['questions'][max_order] = question.id
+                self.context['questions'][question.order] = question.id
 
         if options:
-            for option in options:
-                Option.objects.create(**{'item_id': item.id, 'content': option})
+            Option.objects.bulk_create([Option(item_id=item.id, content=option) for option in options])
 
         return item
 
