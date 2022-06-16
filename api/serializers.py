@@ -1,6 +1,6 @@
 from django.db.models import Max
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
 
 
 class SurveyInfoSerializer(serializers.ModelSerializer):
@@ -294,3 +294,10 @@ class PreconditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Precondition
         fields = ('expected_option', 'next_item')
+
+
+class IntervieweeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Interviewee
+        fields = ['id', 'email', 'first_name', 'last_name']
+        read_only_fields = []

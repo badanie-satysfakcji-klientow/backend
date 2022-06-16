@@ -4,8 +4,8 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, ItemPatchSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section
+    AnswerQuestionCountSerializer, IntervieweeSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
@@ -159,3 +159,9 @@ class OptionViewSet(ModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
     lookup_url_kwarg = 'option_id'
+
+
+class IntervieweeViewSet(ModelViewSet):
+    queryset = Interviewee.objects.all()
+    serializer_class = IntervieweeSerializer
+    lookup_url_kwarg = 'interviewee_id'
