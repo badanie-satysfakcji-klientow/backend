@@ -50,12 +50,11 @@ class ItemAPITest(APITestCase):
         )
         url = reverse('items-uuid', kwargs={'item_id': item.id})
         # TODO: Resolve that conflict
-        response = self.client.patch(url, {'type': 2, 'required': False})
+        response = self.client.patch(url, {'type': 'gridSingle', 'required': False})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Item.objects.count(), 1)
-        self.assertEqual(response.data['id'], str(item.id))
-        self.assertEqual(Item.objects.get(pk=item.id).type, 2)
+        self.assertEqual(Item.objects.get(id=item.id).type, 2)
 
     def test_can_delete_item(self):
         item = Item.objects.create(

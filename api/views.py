@@ -14,7 +14,7 @@ from django.urls import reverse
 
 
 class SurveyViewSet(ModelViewSet):
-    queryset = Survey.objects.all()
+    queryset = Survey.objects.prefetch_related('items')
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
@@ -80,6 +80,20 @@ class ItemViewSet(ModelViewSet):
                          'item_id': serializer.data.get('id'),
                          'questions_ids': serializer.context['questions']},
                         status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):     # unnecessary
+        """
+        # update item by its id
+        """
+        partial = kwargs.pop('partial', False)
+        instance = Item.objects.get(id=kwargs['item_id'])
+        if partial:
+            serializer = self.get_serializer(instance, data=request.data, partial=partial)
+            serializer.context['type'] = request.data.get('type')
+            if serializer.is_valid():
+                self.perform_update(serializer)
+                return Response({'status': 'updated'}, status=status.HTTP_200_OK)
+            return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
 
 class AnswersCountViewSet(ModelViewSet):

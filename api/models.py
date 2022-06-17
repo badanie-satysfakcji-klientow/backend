@@ -1,10 +1,3 @@
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
 import uuid
 
@@ -29,7 +22,7 @@ class Section(models.Model):
         db_table = 'sections'
 
     def get_items_in_order(self):
-        items = Item.objects.filter(section=self)
+        items = Item.objects.prefetch_related('questions').filter(section=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
 
     def get_start_question_order(self):
@@ -66,18 +59,18 @@ class Survey(models.Model):
         db_table = 'surveys'
 
     def get_sections_in_order(self):
-        items = Item.objects.filter(survey=self).values_list('id')
-        sections = Section.objects.filter(start_item_id__in=items).order_by()
+        items = Item.objects.prefetch_related('questions',  'options').filter(survey=self).values_list('id')
+        sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items).order_by()
         return sorted(sections, key=lambda x: x.get_start_question_order())
 
     def get_items_in_order(self):
-        items = Item.objects.filter(survey=self)
+        items = Item.objects.prefetch_related('questions', 'options').filter(survey=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
 
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    survey = models.ForeignKey(Survey, on_delete=models.CASCADE, db_column='survey_id')
+    survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE, db_column='survey_id')
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 
