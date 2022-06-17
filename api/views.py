@@ -162,8 +162,8 @@ class SendEmailViewSet(ModelViewSet):
         try:
             interviewees = request.data['interviewees']
         except KeyError as e:
-            hint = 'Provide correct interviewee id list eg. ' \
-                   '`interviewees`: [`edceeada-ca3d-4e1f-99f7-ed0ba3c8e999`, f5812d91-3df0-406d-b8bb-c947ee9cd745`]'
+            hint = "Provide correct interviewee id list eg.  " \
+                   "{'interviewees': ['7d01d6b3-df2a-42fc-ab9e-ffe5f39a9685', '8e813c93-37a7-429f-926c-0ac092b30c79']}"
             return Response(
                 {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
 
