@@ -154,7 +154,7 @@ class OptionViewSet(ModelViewSet):
     serializer_class = OptionSerializer
     lookup_url_kwarg = 'option_id'
 
-    
+
 class IntervieweeViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
     serializer_class = IntervieweeSerializer
@@ -257,18 +257,29 @@ class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         file = serializer.validated_data['file']
-        csv_reader = pd.read_csv(file, sep=';', encoding='utf8')
+        try:
+            csv_reader = pd.read_csv(file, sep=';', encoding='utf8')
+        except pd.errors.EmptyDataError:
+            return Response({'status': 'error', 'message': 'selected file is empty or not .csv',
+                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         new_interviewee_list = []
         already_exists = []
-        for idx, row in csv_reader.iterrows():
-            new_interviewee = Interviewee(
-                email=row['email'],
-                first_name=row['first_name'],
-                last_name=row['last_name']
-            )
-            already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
-                new_interviewee_list.append(new_interviewee)
+        try:
+            for idx, row in csv_reader.iterrows():
+                new_interviewee = Interviewee(
+                    email=row['email'],
+                    first_name=row['first_name'],
+                    last_name=row['last_name']
+                )
+                already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
+                    new_interviewee_list.append(new_interviewee)
+        except KeyError:
+            return Response({'status': 'error',
+                             "message": "selected file doesnt contain 'email', 'first_name' or 'last_name' column",
+                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
 
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
