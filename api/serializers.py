@@ -86,6 +86,7 @@ class AnswerQuestionCountSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True, required=False)
     options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True, required=False)
+    type = serializers.SerializerMethodField()
 
     type_map = {
         1: 'list',
@@ -100,6 +101,9 @@ class ItemSerializer(serializers.ModelSerializer):
         10: 'closedSingle',
         11: 'closedMultiple'
     }
+
+    def get_type(self, instance):
+        return self.type_map[instance.type]
 
     inv_type_map = {v: k for k, v in type_map.items()}
 
@@ -138,8 +142,9 @@ class ItemSerializer(serializers.ModelSerializer):
         return item
 
     def update(self, instance, validated_data):
-        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
-        validated_data['type'] = type_map_key
+        if self.context['type']:
+            type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+            validated_data['type'] = type_map_key
         instance.__dict__.update(**validated_data)
         instance.save()
         return instance
