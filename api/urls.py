@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
-    QuestionViewSet, OptionViewSet, AnswersCountViewSet, SendEmailViewSet, IntervieweeViewSet
+    QuestionViewSet, OptionViewSet, AnswersCountViewSet, SendEmailViewSet, IntervieweeViewSet, CSVIntervieweesViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -32,4 +32,7 @@ urlpatterns = [
     path('api/interviewees',
          IntervieweeViewSet.as_view({'get': 'list', 'post': 'create'}),
          name='interviewee'),
+    path('api/interviewees/csv',
+         CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
+         name='interviewee-csv'),
 ]
