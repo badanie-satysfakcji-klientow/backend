@@ -1,14 +1,14 @@
 from django.urls import path
 
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
-    QuestionViewSet, OptionViewSet, AnswersCountViewSet, IntervieweeViewSet
+    QuestionViewSet, OptionViewSet, AnswersCountViewSet, SendEmailViewSet, IntervieweeViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
          ItemViewSet.as_view({'post': 'create'}), name='survey-items'),
     path('api/surveys/<uuid:survey_id>/sections',
          SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),
-    path('api/surveys/<uuid:survey_id>/send', SurveyViewSet.as_view({'post': 'send'})),
+    path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-by-id'),
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
