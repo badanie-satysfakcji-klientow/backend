@@ -1,7 +1,7 @@
 from django.urls import path
 
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
-    QuestionViewSet, OptionViewSet, AnswersCountViewSet
+    QuestionViewSet, OptionViewSet, AnswersCountViewSet, IntervieweeViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -24,5 +24,12 @@ urlpatterns = [
     path('api/options/<uuid:option_id>',
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
     path('api/creators/<uuid:creator_id>/surveys',
-         SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info')
+         SurveyViewSet.as_view({'get': 'retrieve_brief'}),
+         name='surveys-brief-info'),
+    path('api/interviewees/<uuid:interviewee_id>',
+         IntervieweeViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy', 'get': 'retrieve'}),
+         name='interviewee-uuid'),
+    path('api/interviewees',
+         IntervieweeViewSet.as_view({'get': 'list', 'post': 'create'}),
+         name='interviewee'),
 ]
