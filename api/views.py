@@ -4,7 +4,7 @@ from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer
+    AnswerQuestionCountSerializer, IntervieweeSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
@@ -50,24 +50,25 @@ class ItemViewSet(ModelViewSet):
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         # headers = self.get_success_headers(serializer.data)
-        return Response({'status': 'created item',
-                         'item_id': serializer.data.get('id'),
-                         'questions_ids': serializer.context['questions']},
-                        status=status.HTTP_201_CREATED)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):     # unnecessary
+    def update(self, request, *args, **kwargs):
         """
         # update item by its id
         """
         partial = kwargs.pop('partial', False)
-        instance = Item.objects.get(id=kwargs['item_id'])
-        if partial:
-            serializer = self.get_serializer(instance, data=request.data, partial=partial)
-            serializer.context['type'] = request.data.get('type')
-            if serializer.is_valid():
-                self.perform_update(serializer)
-                return Response({'status': 'updated'}, status=status.HTTP_200_OK)
-            return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.context['type'] = request.data.get('type')
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class AnswersCountViewSet(ModelViewSet):
@@ -148,6 +149,12 @@ class OptionViewSet(ModelViewSet):
     serializer_class = OptionSerializer
     lookup_url_kwarg = 'option_id'
 
+    
+class IntervieweeViewSet(ModelViewSet):
+    queryset = Interviewee.objects.all()
+    serializer_class = IntervieweeSerializer
+    lookup_url_kwarg = 'interviewee_id'
+
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
@@ -222,5 +229,3 @@ def send_my_mass_mail(survey_id, email_list, html=True) -> None:
         data_tuple_txt = ((survey_title, txt_message, None, email_list),)
         t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
         t.start()
-
-
