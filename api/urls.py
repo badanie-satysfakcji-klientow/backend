@@ -8,7 +8,7 @@ urlpatterns = [
          ItemViewSet.as_view({'post': 'create'}), name='survey-items'),
     path('api/surveys/<uuid:survey_id>/sections',
          SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),
-    path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'})),
+    path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send_by_id'),
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),

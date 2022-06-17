@@ -156,7 +156,7 @@ class SendEmailViewSet(ModelViewSet):
     def send(self, request, *args, **kwargs):
         """
         send a mail with link to survey
-        eg. http://127.0.0.1:4200/surveys/survey_uuid
+        eg. http://127.0.0.1:4200/survey/survey_uuid
         """
         survey_id = kwargs['survey_id']
         try:
@@ -203,10 +203,12 @@ def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None
 def send_my_mass_mail(survey_id, email_list, html=True) -> None:
     """
     starts new thread sending mass email (to prevent API freeze) - significantly speeds up the request
+    current link to survey: http://127.0.0.1:4200/survey/<survey_id>
     """
     survey = Survey.objects.get(pk=survey_id)
     survey_title = survey.title
-    survey_link = settings.DOMAIN_NAME + reverse('surveys-uuid', args=[survey_id]).removeprefix('/api')
+    partial_link = reverse('surveys-uuid', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
+    survey_link = settings.DOMAIN_NAME + partial_link
 
     context = {'link': survey_link}
     html_message = render_to_string('email_template.html', context=context)
