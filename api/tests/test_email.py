@@ -39,7 +39,7 @@ class EmailAPITest(APITestCase):
         self.interviewee_ids = [self.new_interviewee.id, self.interviewee.id]
 
     def test_can_send_survey(self):
-        url = reverse('send_by_id', kwargs={'survey_id': self.survey.id})
+        url = reverse('send-by-id', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, {'interviewees': self.interviewee_ids})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

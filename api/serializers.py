@@ -290,3 +290,10 @@ class IntervieweeSerializer(serializers.ModelSerializer):
         model = Interviewee
         fields = ['id', 'email', 'first_name', 'last_name']
         read_only_fields = []
+
+
+class IntervieweeUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+    class Meta:
+        fields = ['file']

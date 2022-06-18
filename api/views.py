@@ -1,10 +1,12 @@
+import datetime
+
 from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer, IntervieweeSerializer
+    AnswerQuestionCountSerializer, IntervieweeSerializer, IntervieweeUploadSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
@@ -13,6 +15,9 @@ from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
 from django.urls import reverse
+from django.http import HttpResponse
+import pandas as pd
+import csv
 
 
 class SurveyViewSet(ModelViewSet):
@@ -149,7 +154,7 @@ class OptionViewSet(ModelViewSet):
     serializer_class = OptionSerializer
     lookup_url_kwarg = 'option_id'
 
-    
+
 class IntervieweeViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
     serializer_class = IntervieweeSerializer
@@ -229,3 +234,96 @@ def send_my_mass_mail(survey_id, email_list, html=True) -> None:
         data_tuple_txt = ((survey_title, txt_message, None, email_list),)
         t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
         t.start()
+
+
+class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and send, 3. send without add
+    serializer_class = IntervieweeUploadSerializer
+    queryset = Interviewee.objects.all()
+
+    @staticmethod
+    def get_email_list(already_exists, new_interviewee_list):
+        csv_interviewees = already_exists + new_interviewee_list
+        return [interviewee.email for interviewee in csv_interviewees]
+
+    @action(detail=False, methods=['POST'])
+    def upload_csv(self, request, *args, **kwargs):
+        save = request.query_params.get('save')
+        survey_id = request.query_params.get('send_survey')
+
+        if not save and not survey_id:
+            return Response({'status': 'error', 'message': 'the specified endpoint has no effect',
+                             'hint': 'provide available query parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file = serializer.validated_data['file']
+        try:
+            csv_reader = pd.read_csv(file, sep=';', encoding='utf8')
+        except pd.errors.EmptyDataError:
+            return Response({'status': 'error', 'message': 'selected file is empty or not .csv',
+                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        new_interviewee_list = []
+        already_exists = []
+        try:
+            for idx, row in csv_reader.iterrows():
+                new_interviewee = Interviewee(
+                    email=row['email'],
+                    first_name=row['first_name'],
+                    last_name=row['last_name']
+                )
+                already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
+                    new_interviewee_list.append(new_interviewee)
+        except KeyError:
+            return Response({'status': 'error',
+                             "message": "selected file doesnt contain 'email', 'first_name' or 'last_name' column",
+                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
+
+        if survey_id:
+            email_list = self.get_email_list(already_exists, new_interviewee_list)
+            try:
+                send_my_mass_mail(survey_id, email_list)
+            except Exception as e:
+                return Response({'survey_id': survey_id, 'status': 'error during sending email',
+                                 'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+            if not save:
+                return Response({'survey_id': survey_id, 'status': 'sending process started'},
+                                status=status.HTTP_200_OK)
+
+            Interviewee.objects.bulk_create(new_interviewee_list)
+            return Response(
+                {'status': 'respondents saved, sending process started',
+                 'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
+                 'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
+                status=status.HTTP_201_CREATED)
+
+        Interviewee.objects.bulk_create(new_interviewee_list)
+        return Response(
+            {'status': 'respondents saved',
+             'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
+             'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
+            status=status.HTTP_201_CREATED)
+
+    @action(detail=False, methods=['GET'])
+    def download_csv(self, request, *args, **kwargs):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = f'attachment; filename="interviewees{datetime.datetime.now()}.csv"'
+        response.write(u'\ufeff'.encode('utf8'))
+
+        writer = csv.writer(response)
+
+        header = ';'.join(['email', 'first_name', 'last_name'])
+        writer.writerow([header])
+
+        for interviewee in self.queryset:
+            row = ';'.join([
+                interviewee.email,
+                interviewee.first_name,
+                interviewee.last_name,
+            ])
+            writer.writerow([row])
+
+        return response
