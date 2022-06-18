@@ -8,8 +8,8 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
+    IntervieweeSerializer, IntervieweeUploadSerializer, PreconditionSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -48,6 +48,8 @@ class ItemViewSet(ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
     lookup_url_kwarg = 'item_id'
+
+    # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs) -> Response:
         """
@@ -101,6 +103,8 @@ class AnswersCountViewSet(ModelViewSet):
 
 class SubmissionViewSet(ModelViewSet):
     serializer_class = SubmissionSerializer
+
+    # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -378,3 +382,26 @@ class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and
             writer.writerow([row])
 
         return response
+
+
+# for Preconditions
+class PreconditionViewSet(ModelViewSet):
+    serializer_class = PreconditionSerializer
+    lookup_url_kwarg = 'precondition_id'
+    queryset = Precondition.objects.all()
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = Precondition.objects.get(id=kwargs['precondition_id'])
+        serializer = PreconditionSerializer(instance, data=request.data, partial=partial)
+
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return Response({'status': 'error'}, status=status.HTTP_400_BAD_REQUEST)
