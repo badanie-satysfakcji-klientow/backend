@@ -5,7 +5,7 @@ from rest_framework.decorators import action
 
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
-    AnswerQuestionCountSerializer, SurveyResultSerializer
+    AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
@@ -28,12 +28,12 @@ class SurveyViewSet(ModelViewSet):
                         headers=headers)
 
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
-    def retrieve_brief(self, request, *args, **kwargs):         # use prefetch_related
-        surveys = Survey.objects.filter(creator_id=kwargs['creator_id'])
+    def retrieve_brief(self, request, *args, **kwargs):  # use prefetch_related
+        surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
 
-    def send(self, request, *args, **kwargs):       # send_mail -> send_mass_mail
+    def send(self, request, *args, **kwargs):  # send_mail -> send_mass_mail
         """
         send a mail with link to survey
         """
@@ -57,7 +57,7 @@ class SurveyViewSet(ModelViewSet):
                       fail_silently=False)
             return Response({'status': 'Sent successfully', 'survey_id': kwargs['survey_id']},
                             status=status.HTTP_200_OK)
-        except Exception as e:   # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
+        except Exception as e:  # chwilowo zeby bylo jakiekolwiek zabezpieczenie, w przyszlosci mozna rozwinac
             return Response({'status': 'Not sent', 'survey_id': survey_id, 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
@@ -82,7 +82,7 @@ class ItemViewSet(ModelViewSet):
                          'questions_ids': serializer.context['questions']},
                         status=status.HTTP_201_CREATED)
 
-    def update(self, request, *args, **kwargs):     # unnecessary
+    def update(self, request, *args, **kwargs):  # unnecessary
         """
         # update item by its id
         """
@@ -102,8 +102,10 @@ class AnswersCountViewSet(ModelViewSet):
 
     def get_queryset(self):
         submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
-        questions_list = Answer.objects.filter(submission__in=submission_queryset).values_list('question', flat=True)
-        return Question.objects.filter(id__in=questions_list)
+        answers_query = Answer.objects \
+            .select_related('question') \
+            .filter(submission__in=submission_queryset).values_list('question_id', flat=True)
+        return Question.objects.filter(id__in=answers_query)
 
     def list(self, request, *args, **kwargs):
         serializer = self.get_serializer(self.get_queryset(), many=True)
@@ -192,13 +194,16 @@ class OptionViewSet(ModelViewSet):
 
 class SurveyResultViewSet(ModelViewSet):
     serializer_class = SurveyResultSerializer
-    queryset = Question.objects.all()
+    queryset = Survey.objects.all()
+    lookup_url_kwarg = 'survey_id'
 
     def retrieve(self, request, *args, **kwargs):
-        survey = self.get_queryset().get(id=kwargs['question_id'])
-        serializer = SurveyResultSerializer(survey)
+        """
+        # get survey result by its id
+        """
+        serializer = self.serializer_class(Question.objects.get(id=self.kwargs['question_id']), many=False)
         try:
-            return Response({'status': 'OK', 'question_results': serializer.data}, status=status.HTTP_200_OK)
+            return Response({'question_result': serializer.data}, status=status.HTTP_200_OK)
         except Exception as e:
             return Response({'status': 'error', 'message': e.args}, status=status.HTTP_400_BAD_REQUEST)
 
@@ -207,11 +212,11 @@ class SurveyResultViewSet(ModelViewSet):
         # get result by survey id
         """
         # get all question results for a survey
-        result_info_serializer = self.get_serializer(self.get_queryset().get(id=self.kwargs['survey_id']), many=False)
-        result_serializer = SurveyResultSerializer(Question.objects.filter(survey=kwargs['survey_id']), many=True)
+        result_info_serializer = SurveyResultInfoSerializer(self.queryset.get(id=self.kwargs['survey_id']), many=False)
+        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
+        result_serializer = self.serializer_class(Question.objects.filter(item_id__in=items_query), many=True)
         try:
-            return Response({'status': 'OK',
-                             'results_info': result_info_serializer.data,
+            return Response({'results_info': result_info_serializer.data,
                              'results': result_serializer.data},
                             status=status.HTTP_200_OK)
         except Exception as e:

@@ -21,7 +21,7 @@ urlpatterns = [
     # path('api/items', ItemViewSet.as_view({'get': 'list'})),
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
     path('api/questions/<uuid:question_id>/results',
-         SurveyResultViewSet.as_view({'get': 'list'}), name='questions-results'),
+         SurveyResultViewSet.as_view({'get': 'retrieve'}), name='question-results'),
     path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})),
     path('api/options/<uuid:option_id>',
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
