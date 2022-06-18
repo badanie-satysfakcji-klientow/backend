@@ -42,8 +42,8 @@ jobs:
     - name: Coverage report
       run: |
         pip install coverage lorem-text
-        coverage run manage.py test
+        coverage run manage.py test --noinput
         coverage report
     - name: Django tests
       run: |
-        python manage.py test
+        python manage.py test --noinput

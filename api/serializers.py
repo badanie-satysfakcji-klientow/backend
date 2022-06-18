@@ -2,7 +2,7 @@ from collections import Counter
 
 from django.db.models import Max, Count, Avg
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -73,6 +73,7 @@ class AnswerQuestionCountSerializer(serializers.ModelSerializer):
 class ItemSerializer(serializers.ModelSerializer):
     questions = serializers.ListSerializer(child=serializers.CharField(), allow_null=True, required=False)
     options = serializers.ListSerializer(child=serializers.CharField(), allow_null=True, required=False)
+    type = serializers.SerializerMethodField()
 
     type_map = {
         1: 'list',
@@ -88,6 +89,9 @@ class ItemSerializer(serializers.ModelSerializer):
         11: 'closedMultiple'
     }
 
+    def get_type(self, instance):
+        return self.type_map[instance.type]
+
     inv_type_map = {v: k for k, v in type_map.items()}
 
     content_map = {
@@ -100,7 +104,7 @@ class ItemSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Item
-        fields = ['id', 'required', 'questions', 'options']
+        fields = ['id', 'required', 'type', 'questions', 'options']
 
     def get_type_display(self, obj) -> int:
         return [key for key, value in self.type_map.items() if value == self.context['type']][0]
@@ -133,8 +137,9 @@ class ItemSerializer(serializers.ModelSerializer):
         return item
 
     def update(self, instance, validated_data):
-        type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
-        validated_data['type'] = type_map_key
+        if self.context['type']:
+            type_map_key = [key for key, value in self.type_map.items() if value == self.context['type']][0]
+            validated_data['type'] = type_map_key
         instance.__dict__.update(**validated_data)
         instance.save()
         return instance
@@ -335,3 +340,17 @@ class PreconditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Precondition
         fields = ('expected_option', 'next_item')
+
+
+class IntervieweeSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Interviewee
+        fields = ['id', 'email', 'first_name', 'last_name']
+        read_only_fields = []
+
+
+class IntervieweeUploadSerializer(serializers.Serializer):
+    file = serializers.FileField()
+
+    class Meta:
+        fields = ['file']
