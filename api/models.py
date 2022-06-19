@@ -90,25 +90,20 @@ class Question(models.Model):
     class Meta:
         db_table = 'questions'
 
+    def get_item_type(self):
+        return self.item.type
+
 
 class Answer(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     question = models.ForeignKey(Question, models.CASCADE)
     content_numeric = models.IntegerField(blank=True, null=True)
     content_character = models.TextField(blank=True, null=True)
-    option = models.ForeignKey(Option, models.CASCADE, blank=True, null=True)
+    option = models.ForeignKey(Option, on_delete=models.DO_NOTHING, blank=True, null=True)
     submission = models.ForeignKey('Submission', models.CASCADE)
 
     class Meta:
         db_table = 'answers'
-
-
-# class CreatorsInterviewees(models.Model):
-#     creator = models.ForeignKey(Creators, models.DO_NOTHING)
-#     interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
-#
-#     class Meta:
-#         db_table = 'creators_interviewees'
 
 
 class Interviewee(models.Model):

@@ -1,29 +1,8 @@
-from django.db.models import Max
+from collections import Counter
+
+from django.db.models import Max, Count, Avg
 from rest_framework import serializers
 from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
-
-
-class SurveyInfoSerializer(serializers.ModelSerializer):
-    sections_count = serializers.SerializerMethodField()
-    items_count = serializers.SerializerMethodField()
-    questions_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Survey
-        lookup_field = 'survey_id'
-        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
-                  'sections_count', 'items_count', 'questions_count')
-
-    def get_sections_count(self, instance):
-        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
-        return Section.objects.filter(start_item_id__in=items_list).count()
-
-    def get_items_count(self, instance):
-        return Item.objects.filter(survey_id=instance.id).count()
-
-    def get_questions_count(self, instance):
-        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
-        return Question.objects.filter(item_id__in=items_list).count()
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -58,6 +37,14 @@ class SurveySerializer(serializers.ModelSerializer):
         items_serializer = ItemGetSerializer(items, many=True)
         if len(items_serializer.data) > 0:
             return items_serializer.data
+
+
+class SurveyInfoSerializer(SurveySerializer):
+    sections = None
+    items = None
+
+    class Meta(SurveySerializer.Meta):
+        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused')
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -107,6 +94,14 @@ class ItemSerializer(serializers.ModelSerializer):
 
     inv_type_map = {v: k for k, v in type_map.items()}
 
+    content_map = {
+        ('list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple'): 'option',
+        ('openShort', 'openLong'): 'content_character',
+        ('scale5', 'scale10', 'scaleNPS', 'openNumeric'): 'content_numeric'
+    }
+
+    inv_content_map = {v: k for k, v in content_map.items()}
+
     class Meta:
         model = Item
         fields = ['id', 'required', 'type', 'questions', 'options']
@@ -130,7 +125,7 @@ class ItemSerializer(serializers.ModelSerializer):
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
-            questions = Question.objects\
+            questions = Question.objects \
                 .bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
 
             for question in questions:
@@ -235,12 +230,71 @@ class AnswerSerializer(serializers.ModelSerializer):
             if not attrs['content_numeric']:
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
+
         return attrs
 
     def create(self, validated_data):
         validated_data['question_id'] = self.context['question_id']
         answer = Answer.objects.create(**validated_data)
         return answer
+
+
+class SurveyResultInfoSerializer(serializers.ModelSerializer):
+    answers_count = serializers.SerializerMethodField()
+    submissions_count = serializers.SerializerMethodField()
+
+    # TODO: Think of some other needed fields
+    class Meta:
+        model = Survey
+        fields = ['answers_count', 'submissions_count']
+
+    def get_submissions_count(self, instance):
+        return Submission.objects.filter(survey_id=instance.id).count()
+
+    def get_answers_count(self, instance):
+        submissions_query = Submission.objects.filter(survey_id=instance.id).values_list('id', flat=True)
+        return Answer.objects.filter(submission_id__in=submissions_query).count()
+
+
+class SurveyResultSerializer(serializers.ModelSerializer):
+    # fields for option
+    # options_count = serializers.SerializerMethodField()
+    # fields for content_character
+    common_answers = serializers.SerializerMethodField()
+    # fields for content_numeric
+    mean = serializers.SerializerMethodField()
+    answers_count = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Question
+        fields = ['id', 'order', 'value', 'mean', 'answers_count', 'common_answers']
+
+    def get_common_words(self, instance):
+        query = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        return Counter(query).most_common(10)
+
+    def get_mean(self, instance):
+        count_query = Answer.objects.filter(question_id=instance.id).aggregate(Avg('content_numeric'))
+        return count_query['content_numeric__avg']
+
+    def get_common_answers(self, instance):
+        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        sentences = [' '.join(content_character.lower().strip().split()) for content_character in sentences]
+        return Counter(sentences).most_common(10)
+
+    def get_answers_count(self, instance):
+        q_type = ItemSerializer.type_map[instance.item.type]
+        if q_type in ItemSerializer.inv_content_map['option']:
+            return Answer.objects.select_related('answer_options').filter(question_id=instance.id) \
+                .values('option_id') \
+                .order_by('option_id') \
+                .annotate(count=Count('option_id'))
+        elif q_type in ItemSerializer.inv_content_map['content_numeric']:
+            return Answer.objects.filter(question_id=instance.id) \
+                .values('content_numeric') \
+                .order_by('content_numeric') \
+                .annotate(count=Count('content_numeric'))
+        return None
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -262,7 +316,7 @@ class SectionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('Start item must be before or equal to end item')
 
         # check if sections overlap
-        sections = Section.objects.prefetch_related('items')\
+        sections = Section.objects.prefetch_related('items') \
             .filter(start_item_id__in=Item.objects.filter(survey_id=survey_id).only('id'))
 
         for section in sections:

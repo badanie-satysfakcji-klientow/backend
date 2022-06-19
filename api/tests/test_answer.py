@@ -60,13 +60,23 @@ class AnswerAPITest(APITestCase):
             survey=self.survey,
         )
 
+        self.answer = Answer.objects.create(
+            submission=self.submission,
+            question=self.question,
+            content_character=lorem.words(5),
+        )
+
+        self.answer2 = Answer.objects.create(
+            submission=self.submission,
+            question=self.question2,
+            content_character=lorem.words(5),
+        )
+
         self.answer_data = {
             'submission': self.submission.id,
             'question': self.question.id,
             'content_character': lorem.words(5),
         }
-
-# TODO: Make that work
 
     def test_can_create_answer(self):
         url = reverse('questions-answer', kwargs={'question_id': self.question.id})
@@ -74,7 +84,8 @@ class AnswerAPITest(APITestCase):
         response = self.client.post(url, self.answer_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
-        self.assertEqual(Answer.objects.count(), 1)
+        # 2 existing + 1 created
+        self.assertEqual(Answer.objects.count(), 3)
 
     def test_can_get_answers_count(self):
         url = reverse('submissions-get-count', kwargs={'survey_id': self.survey.id})
@@ -101,3 +112,32 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(len(response.json()['answers_count']), 2)
         for i in content:
             self.assertEqual(i['count'], Answer.objects.filter(question=i['id']).count())
+
+    def test_can_get_results(self):
+        url = reverse('results', kwargs={'survey_id': self.survey.id})
+
+        for i in range(0, 3):
+            Answer.objects.create(
+                submission=self.submission,
+                question=self.question,
+                content_character=lorem.words(5),
+            )
+
+        response = self.client.get(url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()['results']), 2)
+
+    def test_can_get_results_by_question(self):
+        url = reverse('question-results', kwargs={'question_id': self.question.id})
+
+        for i in range(0, 3):
+            Answer.objects.create(
+                submission=self.submission,
+                question=self.question,
+                content_character=lorem.words(5),
+            )
+
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.json()['question_result']['common_answers']), 4)
