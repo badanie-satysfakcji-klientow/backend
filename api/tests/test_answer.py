@@ -108,8 +108,8 @@ class AnswerAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
-        content = response.json()['answers_count']
-        self.assertEqual(len(response.json()['answers_count']), 2)
+        content = response.json()['results']
+        self.assertEqual(len(content), 2)
         for i in content:
             self.assertEqual(i['count'], Answer.objects.filter(question=i['id']).count())
 
