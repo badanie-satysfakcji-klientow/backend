@@ -5,12 +5,14 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 
+
 from .paginators import StandardResultsSetPagination, SectionPagination
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee
+    IntervieweeSerializer, IntervieweeUploadSerializer, PreconditionSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee, Precondition
+
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -50,6 +52,8 @@ class ItemViewSet(ModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
     lookup_url_kwarg = 'item_id'
+
+    # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs) -> Response:
         """
@@ -101,6 +105,8 @@ class AnswersCountViewSet(ModelViewSet):
 
 class SubmissionViewSet(ModelViewSet):
     serializer_class = SubmissionSerializer
+
+    # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -373,3 +379,10 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
             writer.writerow([row])
 
         return response
+
+
+# for Preconditions
+class PreconditionViewSet(ModelViewSet):
+    serializer_class = PreconditionSerializer
+    lookup_url_kwarg = 'precondition_id'
+    queryset = Precondition.objects.all()
