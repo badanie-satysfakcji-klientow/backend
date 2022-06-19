@@ -278,10 +278,9 @@ class SurveyResultSerializer(serializers.ModelSerializer):
         return count_query['content_numeric__avg']
 
     def get_common_answers(self, instance):
-        return Answer.objects.filter(question_id=instance.id)\
-            .values('content_character')\
-            .order_by('content_character')\
-            .annotate(count=Count('content_character'))[:10]
+        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        sentences = [' '.join(content_character.lower().strip().split()) for content_character in sentences]
+        return Counter(sentences).most_common(10)
 
     def get_answers_count(self, instance):
         q_type = ItemSerializer.type_map[instance.item.type]
