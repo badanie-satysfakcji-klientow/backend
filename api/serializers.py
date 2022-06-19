@@ -214,11 +214,7 @@ class AnswerSerializer(serializers.ModelSerializer):
         if Survey.objects.get(id=survey_id).paused:
             raise serializers.ValidationError('Survey is paused')
 
-        if (question := Question.objects.get(id=attrs['question'].id)) is not None:
-            attrs['question'] = question
-
         # check for item type
-
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
@@ -252,10 +248,10 @@ class SurveyResultInfoSerializer(serializers.ModelSerializer):
         model = Survey
         fields = ['answers_count', 'submissions_count']
 
-    def get_answers_count(self, instance):
+    def get_submissions_count(self, instance):
         return Submission.objects.filter(survey_id=instance.id).count()
 
-    def get_submissions_count(self, instance):
+    def get_answers_count(self, instance):
         submissions_query = Submission.objects.filter(survey_id=instance.id).values_list('id', flat=True)
         return Answer.objects.filter(submission_id__in=submissions_query).count()
 
@@ -282,8 +278,10 @@ class SurveyResultSerializer(serializers.ModelSerializer):
         return count_query['content_numeric__avg']
 
     def get_common_answers(self, instance):
-        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
-        return Counter(sentences).most_common(10)
+        return Answer.objects.filter(question_id=instance.id)\
+            .values('content_character')\
+            .order_by('content_character')\
+            .annotate(count=Count('content_character'))[:10]
 
     def get_answers_count(self, instance):
         q_type = ItemSerializer.type_map[instance.item.type]
