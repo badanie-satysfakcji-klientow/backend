@@ -283,6 +283,7 @@ class SurveyResultSerializer(serializers.ModelSerializer):
 
     def get_common_answers(self, instance):
         sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        sentences = [' '.join(content_character.lower().strip().split()) for content_character in sentences]
         return Counter(sentences).most_common(10)
 
     def get_answers_count(self, instance):

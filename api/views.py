@@ -10,6 +10,7 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, PreconditionSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
+
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -126,14 +127,10 @@ class AnswerViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
-        try:
-            serializer.is_valid(raise_exception=True)
-            self.perform_create(serializer)
-            return Response({'status': 'success', 'answer_id': serializer.data.get('id')},
-                            status=status.HTTP_201_CREATED)
-        except serializers.ValidationError as e:
-            return Response({'status': 'error', 'message': e.args},
-                            status=status.HTTP_400_BAD_REQUEST)
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'answer_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
 
 
 class SectionViewSet(ModelViewSet):
@@ -166,6 +163,18 @@ class OptionViewSet(ModelViewSet):
 
     lookup_url_kwarg = 'option_id'
 
+    def update(self, request, *args, **kwargs):
+        """
+        # update option by its id
+        """
+        partial = kwargs.pop('partial', False)
+        instance = Option.objects.get(id=kwargs['option_id'])
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        if serializer.is_valid():
+            self.perform_update(serializer)
+            return Response(data=serializer.data, status=status.HTTP_200_OK)
+        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
+
 
 class SurveyResultViewSet(ModelViewSet):
     serializer_class = SurveyResultSerializer
@@ -177,10 +186,7 @@ class SurveyResultViewSet(ModelViewSet):
         # get survey result by its id
         """
         serializer = self.serializer_class(Question.objects.get(id=self.kwargs['question_id']), many=False)
-        try:
-            return Response({'question_result': serializer.data}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'status': 'error', 'message': e.args}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'question_result': serializer.data}, status=status.HTTP_200_OK)
 
     def list(self, request, *args, **kwargs):
         """
@@ -190,12 +196,9 @@ class SurveyResultViewSet(ModelViewSet):
         result_info_serializer = SurveyResultInfoSerializer(self.queryset.get(id=self.kwargs['survey_id']), many=False)
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
         result_serializer = self.serializer_class(Question.objects.filter(item_id__in=items_query), many=True)
-        try:
-            return Response({'results_info': result_info_serializer.data,
-                             'results': result_serializer.data},
-                            status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'status': 'error', 'message': e.args}, status=status.HTTP_400_BAD_REQUEST)
+        return Response({'results_info': result_info_serializer.data,
+                         'results': result_serializer.data},
+                        status=status.HTTP_200_OK)
 
 
 class IntervieweeViewSet(ModelViewSet):

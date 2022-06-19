@@ -86,10 +86,6 @@ class Item(models.Model):
     def is_before(self, item: 'Item'):
         return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
 
-    # @staticmethodhttp://127.0.0.1:8000/api/interviewees/csv
-    # def is_before(item1, item2):
-    #     return Question.objects.filter(item__in=[item1, item2]).order_by('order').first().item_id == item1.id
-
 
 class Question(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
