@@ -1,7 +1,7 @@
 from django.urls import path
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
-    IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet
+    IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -13,6 +13,8 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
     path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
+    path('api/surveys/<uuid:survey_id>/preconditions',
+         PreconditionViewSet.as_view({'get': 'list'}), name='preconditions-get'),
     path('api/surveys/<uuid:survey_id>',
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),
@@ -41,4 +43,9 @@ urlpatterns = [
     path('api/interviewees/csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
+    path('api/preconditions/<uuid:precondition_id>',
+         PreconditionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='preconditions-uuid'),
+    path('api/preconditions',
+         PreconditionViewSet.as_view({'post': 'create'}), name='preconditions'),
+
 ]

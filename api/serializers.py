@@ -214,7 +214,11 @@ class AnswerSerializer(serializers.ModelSerializer):
         if Survey.objects.get(id=survey_id).paused:
             raise serializers.ValidationError('Survey is paused')
 
+        if (question := Question.objects.get(id=attrs['question'].id)) is not None:
+            attrs['question'] = question
+
         # check for item type
+
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
@@ -247,6 +251,7 @@ class SurveyResultInfoSerializer(serializers.ModelSerializer):
     class Meta:
         model = Survey
         fields = ['answers_count', 'submissions_count']
+
 
     def get_submissions_count(self, instance):
         return Submission.objects.filter(survey_id=instance.id).count()
@@ -309,7 +314,7 @@ class SurveyResultFullSerializer(SurveyResultSerializer):
         sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
         return {' '.join(content_character.lower().strip().split()) for content_character in sentences}
 
-
+      
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
@@ -349,7 +354,49 @@ class SectionSerializer(serializers.ModelSerializer):
 class PreconditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Precondition
-        fields = ('expected_option', 'next_item')
+        fields = ('id', 'item', 'expected_option', 'next_item')
+        read_only_fields = ('id', 'item')
+
+    def create(self, validated_data):
+        validated_data['item_id'] = validated_data['expected_option'].item_id
+        precondition = Precondition.objects.create(**validated_data)
+        return precondition
+
+    def validate(self, attrs):
+        if self.partial:
+            return self.validate_partial(attrs)
+
+        # ensures that both option and item exist
+        if not Option.objects.filter(id=attrs['expected_option'].id).exists():
+            raise serializers.ValidationError('Expected option not found')
+
+        if not Item.objects.filter(id=attrs['next_item'].id).exists():
+            raise serializers.ValidationError('Next item not found')
+
+        item = Item.objects.get(id=Option.objects.get(id=attrs['expected_option'].id).item_id)
+
+        # check if item is before next_item
+        if not item.is_before(attrs['next_item']):
+            raise serializers.ValidationError('Item must be before next item')
+
+        # check if that precondition exists
+        if Precondition.objects.filter(item=item, next_item=attrs['next_item'].id).exists():
+            raise serializers.ValidationError('Precondition already exists')
+
+        return attrs
+
+    def validate_partial(self, attrs):
+        if 'next_item' in attrs:
+            if not Item.objects.filter(id=attrs['next_item'].id).exists():
+                raise serializers.ValidationError('Next item not found')
+
+            if not self.instance.item.is_before(self.instance.next_item):
+                raise serializers.ValidationError('Item must be before next item')
+
+        if 'expected_option' in attrs:
+            if not Option.objects.get(id=attrs['expected_option'].id).item_id == self.instance.item_id:
+                raise serializers.ValidationError('Expected option not found')
+        return attrs
 
 
 class IntervieweeSerializer(serializers.ModelSerializer):
