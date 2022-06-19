@@ -166,18 +166,6 @@ class OptionViewSet(ModelViewSet):
 
     lookup_url_kwarg = 'option_id'
 
-    def update(self, request, *args, **kwargs):
-        """
-        # update option by its id
-        """
-        partial = kwargs.pop('partial', False)
-        instance = Option.objects.get(id=kwargs['option_id'])
-        serializer = self.get_serializer(instance, data=request.data, partial=partial)
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
-        return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
-
 
 class SurveyResultViewSet(ModelViewSet):
     serializer_class = SurveyResultSerializer
@@ -389,19 +377,3 @@ class PreconditionViewSet(ModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
-
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        serializer.save()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    def update(self, request, *args, **kwargs):
-        partial = kwargs.pop('partial', False)
-        instance = Precondition.objects.get(id=kwargs['precondition_id'])
-        serializer = PreconditionSerializer(instance, data=request.data, partial=partial)
-
-        if serializer.is_valid():
-            self.perform_update(serializer)
-            return Response(data=serializer.data, status=status.HTTP_200_OK)
-        return Response({'status': 'error'}, status=status.HTTP_400_BAD_REQUEST)
