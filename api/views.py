@@ -8,7 +8,7 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer
+    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
@@ -194,6 +194,10 @@ class SurveyResultViewSet(ModelViewSet):
         return Response({'results_info': result_info_serializer.data,
                          'results': result_serializer.data},
                         status=status.HTTP_200_OK)
+
+
+class SurveyResultFullViewSet(SurveyResultViewSet):
+    serializer_class = SurveyResultFullSerializer
 
 
 class IntervieweeViewSet(ModelViewSet):

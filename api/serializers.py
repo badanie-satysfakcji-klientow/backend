@@ -264,6 +264,7 @@ class SurveyResultSerializer(serializers.ModelSerializer):
     # fields for content_numeric
     mean = serializers.SerializerMethodField()
     answers_count = serializers.SerializerMethodField()
+    most_common_number = 10
 
     class Meta:
         model = Question
@@ -271,7 +272,7 @@ class SurveyResultSerializer(serializers.ModelSerializer):
 
     def get_common_words(self, instance):
         query = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
-        return Counter(query).most_common(10)
+        return Counter(query).most_common(self.most_common_number)
 
     def get_mean(self, instance):
         count_query = Answer.objects.filter(question_id=instance.id).aggregate(Avg('content_numeric'))
@@ -280,7 +281,7 @@ class SurveyResultSerializer(serializers.ModelSerializer):
     def get_common_answers(self, instance):
         sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
         sentences = [' '.join(content_character.lower().strip().split()) for content_character in sentences]
-        return Counter(sentences).most_common(10)
+        return dict(Counter(sentences).most_common(self.most_common_number))
 
     def get_answers_count(self, instance):
         q_type = ItemSerializer.type_map[instance.item.type]
@@ -295,6 +296,18 @@ class SurveyResultSerializer(serializers.ModelSerializer):
                 .order_by('content_numeric') \
                 .annotate(count=Count('content_numeric'))
         return None
+
+
+class SurveyResultFullSerializer(SurveyResultSerializer):
+    open_answers_content_list = serializers.SerializerMethodField()
+    most_common_number = 1
+
+    class Meta(SurveyResultSerializer.Meta):
+        fields = SurveyResultSerializer.Meta.fields + ['open_answers_content_list']
+
+    def get_open_answers_content_list(self, instance):
+        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        return {' '.join(content_character.lower().strip().split()) for content_character in sentences}
 
 
 class SectionSerializer(serializers.ModelSerializer):
