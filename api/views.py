@@ -10,9 +10,9 @@ from .paginators import StandardResultsSetPagination, SectionPagination
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer, PreconditionSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee, Precondition
+    SurveyResultFullSerializer, IntervieweeSerializer, IntervieweeUploadSerializer, PreconditionSerializer
 
+from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee, Precondition
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -205,6 +205,10 @@ class SurveyResultViewSet(ModelViewSet):
         return self.get_paginated_response(
             {'results_info': result_info_serializer.data,
              'results': result_serializer.data})
+
+
+class SurveyResultFullViewSet(SurveyResultViewSet):
+    serializer_class = SurveyResultFullSerializer
 
 
 class IntervieweeViewSet(ModelViewSet):
