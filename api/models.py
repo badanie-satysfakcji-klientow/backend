@@ -67,6 +67,9 @@ class Survey(models.Model):
         items = Item.objects.prefetch_related('questions', 'options').filter(survey=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
 
+    def get_items(self):
+        return Item.objects.filter(survey=self)
+
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
@@ -79,6 +82,9 @@ class Item(models.Model):
 
     def get_first_question_order(self):
         return Question.objects.filter(item=self).order_by('order').first().order
+
+    def is_before(self, item: 'Item'):
+        return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
 
 
 class Question(models.Model):
