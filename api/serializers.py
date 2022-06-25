@@ -252,7 +252,6 @@ class SurveyResultInfoSerializer(serializers.ModelSerializer):
         model = Survey
         fields = ['answers_count', 'submissions_count']
 
-
     def get_submissions_count(self, instance):
         return Submission.objects.filter(survey_id=instance.id).count()
 
@@ -314,7 +313,7 @@ class SurveyResultFullSerializer(SurveyResultSerializer):
         sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
         return {' '.join(content_character.lower().strip().split()) for content_character in sentences}
 
-      
+
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
@@ -329,12 +328,18 @@ class SectionSerializer(serializers.ModelSerializer):
             raise serializers.ValidationError('End item not found')
 
         # check if start_item is before end_item
-        if not (start_item_order := Question.objects.get(item_id=attrs['start_item'].id).order) <= \
-               (end_item_order := Question.objects.get(item_id=attrs['end_item'].id).order):
+        if not (start_item_order := Question.objects
+                .filter(item_id=attrs['start_item'].id)
+                .order_by('order')
+                .first().order) <= \
+               (end_item_order := Question.objects
+                .filter(item_id=attrs['end_item'].id)
+                .order_by('order')
+                .first().order):
             raise serializers.ValidationError('Start item must be before or equal to end item')
 
         # check if sections overlap
-        sections = Section.objects.prefetch_related('items') \
+        sections = Section.objects.select_related('start_item', 'end_item') \
             .filter(start_item_id__in=Item.objects.filter(survey_id=survey_id).only('id'))
 
         for section in sections:
