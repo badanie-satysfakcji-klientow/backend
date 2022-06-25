@@ -14,7 +14,6 @@ from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
 
-
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -22,6 +21,7 @@ from django.urls import reverse
 from django.http import HttpResponse
 import pandas as pd
 import csv
+from openpyxl import Workbook
 
 
 class SurveyViewSet(ModelViewSet):
@@ -285,7 +285,7 @@ def send_my_mass_mail(survey_id, email_list, html=True) -> None:
         t.start()
 
 
-class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and send, 3. send without add
+class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
 
@@ -383,3 +383,53 @@ class PreconditionViewSet(ModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
+
+
+class SurveyResultRawViewSet(ModelViewSet):
+    lookup_url_kwarg = 'survey_id'
+
+    def get_queryset(self):
+        submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
+        answers_query = Answer.objects \
+            .select_related('question') \
+            .filter(submission__in=submission_queryset).values_list('question_id', flat=True)
+        return answers_query
+
+    def retrieve(self, request, *args, **kwargs):
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename={date}-results.xlsx'.format(
+            date=datetime.datetime.now().strftime('%Y-%m-%d'),
+        )
+        workbook = Workbook()
+
+        worksheet = workbook.active
+        survey = Survey.objects.get(id=self.kwargs['survey_id'])
+        worksheet.title = f'Survey "{survey.title}" results'
+
+        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
+        question_query = Question.objects.filter(item_id__in=items_query)
+        columns = [q.value for q in question_query]
+        row_num = 1
+        for col_num, column_title in enumerate(columns, 1):
+            cell = worksheet.cell(row=row_num, column=col_num)
+            cell.value = column_title
+
+        row_num = 2
+        col_num = 1
+        for question in question_query:
+            answer_queryset = Answer.objects.filter(question_id=question.id)
+            col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
+
+            for cell_value in col_data:
+                cell = worksheet.cell(row=row_num, column=col_num)
+                cell.value = cell_value
+                row_num += 1
+
+            row_num = 2
+            col_num += 1
+
+        workbook.save(response)
+
+        return response
