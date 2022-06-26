@@ -1,5 +1,6 @@
 import datetime
 
+from django.db.models import F
 from rest_framework import status, serializers
 from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
@@ -154,6 +155,13 @@ class QuestionViewSet(ModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
     lookup_url_kwarg = 'question_id'
+
+    def destroy(self, request, *args, **kwargs):
+        instance = self.get_object()
+        instance_order = instance.order
+        instance.delete()
+        Question.objects.filter(order__gt=instance_order).update(order=F('order') - 1)
+        return Response({'status': 'deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
 class OptionViewSet(ModelViewSet):

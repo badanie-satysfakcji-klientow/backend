@@ -27,7 +27,9 @@ urlpatterns = [
          SurveyResultViewSet.as_view({'get': 'retrieve'}), name='question-results'),
     path('api/questions/<uuid:question_id>/results/more',
          SurveyResultFullViewSet.as_view({'get': 'retrieve'}), name='question-results-full'),
-    path('api/questions/<uuid:question_id>', QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'})),
+    path('api/questions/<uuid:question_id>',
+         QuestionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='questions-uuid'),
+
     path('api/options/<uuid:option_id>',
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
 

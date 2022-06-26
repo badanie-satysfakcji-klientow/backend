@@ -1,6 +1,6 @@
 from collections import Counter
+from django.db.models import Max, Min, F, Count, Avg
 
-from django.db.models import Max, Count, Avg
 from rest_framework import serializers
 from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
 
@@ -51,6 +51,39 @@ class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ('id', 'order', 'value')
+
+    def validate(self, attrs):
+        order = attrs.get('order', self.instance.order)
+
+        if order is not None:
+            if order < 1:
+                raise serializers.ValidationError('Order must be greater than 0')
+            if self.partial and order > Question.objects.filter(item_id=self.instance.item_id)\
+                    .aggregate(Max('order'))['order__max']:
+                raise serializers.ValidationError('Order must be less than or equal to the highest order')
+            if self.partial and order < Question.objects.filter(item_id=self.instance.item_id)\
+                    .aggregate(Min('order'))['order__min']:
+                raise serializers.ValidationError('Order must be greater than or equal to the lowest order')
+        return attrs
+
+    def update(self, instance, validated_data):
+        # update the order of the question if it is changed
+        prev_order = instance.order
+        instance.order = validated_data.get('order', instance.order)
+        instance.value = validated_data.get('value', instance.value)
+
+        # update other questions within the same item
+        # move backwards
+        if prev_order > instance.order:
+            Question.objects.filter(item_id=instance.item_id, order__gte=instance.order, order__lt=prev_order)\
+                .update(order=F('order') + 1)
+        # move forwards
+        elif prev_order < instance.order:
+            Question.objects.filter(item_id=instance.item_id, order__gt=prev_order, order__lte=instance.order)\
+                .update(order=F('order') - 1)
+
+        instance.save()
+        return instance
 
 
 class OptionSerializer(serializers.ModelSerializer):
@@ -252,7 +285,6 @@ class SurveyResultInfoSerializer(serializers.ModelSerializer):
         model = Survey
         fields = ['answers_count', 'submissions_count']
 
-
     def get_submissions_count(self, instance):
         return Submission.objects.filter(survey_id=instance.id).count()
 
@@ -314,7 +346,7 @@ class SurveyResultFullSerializer(SurveyResultSerializer):
         sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
         return {' '.join(content_character.lower().strip().split()) for content_character in sentences}
 
-      
+
 class SectionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Section
