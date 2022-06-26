@@ -79,4 +79,3 @@ class Predefined:
             content_numeric=None,
             option=None
         ) for _ in range(count)]
-

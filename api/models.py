@@ -81,6 +81,8 @@ class Item(models.Model):
         db_table = 'items'
 
     def get_first_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
         return Question.objects.filter(item=self).order_by('order').first().order
 
     def is_before(self, item: 'Item'):
