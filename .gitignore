@@ -24,6 +24,7 @@ __pycache__
 *.pot
 *.installed.cfg
 config.json
+venv
 
 # misc
 /coverage
