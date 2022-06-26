@@ -2,7 +2,7 @@ from django.urls import path
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
-    SurveyResultRawViewSet
+    SurveyResultRawViewSet, CreatorViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -22,9 +22,11 @@ urlpatterns = [
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),
     path('api/surveys', SurveyViewSet.as_view({'post': 'create'}), name='surveys'),
+
     path('api/items/<uuid:item_id>',
          ItemViewSet.as_view({'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}), name='items-uuid'),
     # path('api/items', ItemViewSet.as_view({'get': 'list'})),
+
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
     path('api/questions/<uuid:question_id>/answer/<uuid:answer_id>',
          AnswerViewSet.as_view({'patch': 'partial_update'}), name='questions-answer-update'),
@@ -39,8 +41,13 @@ urlpatterns = [
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
 
     path('api/creators/<uuid:creator_id>/surveys',
-         SurveyViewSet.as_view({'get': 'retrieve_brief'}),
-         name='surveys-brief-info'),
+         SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info'),
+    path('api/creators/<uuid:creator_id>',
+         CreatorViewSet.as_view({'get': 'retrieve', 'patch': 'partial_update', 'delete': 'destroy'}),
+         name='creator-uuid'),
+    path('api/creators',
+         CreatorViewSet.as_view({'post': 'create'}), name='creator'),
+
     path('api/interviewees/<uuid:interviewee_id>',
          IntervieweeViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy', 'get': 'retrieve'}),
          name='interviewee-uuid'),
@@ -50,6 +57,7 @@ urlpatterns = [
     path('api/interviewees/csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
+
     path('api/preconditions/<uuid:precondition_id>',
          PreconditionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='preconditions-uuid'),
     path('api/preconditions',

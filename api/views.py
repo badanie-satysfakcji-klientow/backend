@@ -9,8 +9,9 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
+    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
+    CreatorSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -429,6 +430,12 @@ class PreconditionViewSet(ModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
+
+
+class CreatorViewSet(ModelViewSet):
+    serializer_class = CreatorSerializer
+    lookup_url_kwarg = 'creator_id'
+    queryset = Creator.objects.all()
 
 
 class SurveyResultRawViewSet(ModelViewSet):
