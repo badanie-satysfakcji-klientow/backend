@@ -461,7 +461,8 @@ class QuestionResultRawViewSet(ModelViewSet):
             answers = self.get_queryset().values_list('content_numeric', flat=True)
         elif answer_type == 'content_character':
             answers = self.get_queryset().values_list('content_character', flat=True)
-            answers = [' '.join(content_character.lower().strip().split()) for content_character in answers]
+            answers = [' '.join(content_character.lower().strip().split()) for content_character in answers
+                       if content_character is not None]
         else:
             return Response({'status': 'error', 'message': 'question without item_type'},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
