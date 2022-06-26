@@ -132,6 +132,21 @@ class AnswerViewSet(ModelViewSet):
         return Response({'status': 'success', 'answer_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
 
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = Answer.objects.get(id=kwargs['answer_id'])
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.context['question_id'] = kwargs.get('question_id')
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+
+        if getattr(instance, '_prefetched_objects_cache', None):
+            # If 'prefetch_related' has been applied to a queryset, we need to
+            # forcibly invalidate the prefetch cache on the instance.
+            instance._prefetched_objects_cache = {}
+
+        return Response(serializer.data)
+
 
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
