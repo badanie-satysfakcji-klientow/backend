@@ -257,10 +257,10 @@ class SendEmailViewSet(ModelViewSet):
 
         if not selected_interviewees:
             try:
-                email_list = request.data['email_list']
+                email_list = request.data['interviewees']
                 send_my_mass_mail(survey_id, email_list)
             except KeyError as e:
-                hint = "Provide correct email list eg. {'email_list': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
+                hint = "Provide correct email list eg. {'interviewees': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
                 return Response(
                     {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
