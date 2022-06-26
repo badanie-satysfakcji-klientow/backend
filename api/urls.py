@@ -1,7 +1,8 @@
 from django.urls import path
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
-    IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, QuestionResultRawViewSet
+    IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
+    SurveyResultRawViewSet, QuestionResultRawViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -13,6 +14,8 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
     path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
+    path('api/surveys/<uuid:survey_id>/results/raw',
+         SurveyResultRawViewSet.as_view({'get': 'retrieve'}), name='results-raw'),
     path('api/surveys/<uuid:survey_id>/preconditions',
          PreconditionViewSet.as_view({'get': 'list'}), name='preconditions-get'),
     path('api/surveys/<uuid:survey_id>',

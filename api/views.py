@@ -16,7 +16,6 @@ from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
 
-
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
@@ -32,6 +31,8 @@ from openpyxl.chart import (
     BarChart
 )
 from openpyxl.chart.label import DataLabelList
+from openpyxl.styles import Font, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 class SurveyViewSet(ModelViewSet):
@@ -338,7 +339,7 @@ def send_my_mass_mail(survey_id, email_list, html=True) -> None:
         t.start()
 
 
-class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and send, 3. send without add
+class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
 
@@ -438,6 +439,7 @@ class PreconditionViewSet(ModelViewSet):
     queryset = Precondition.objects.all()
 
 
+
 class QuestionResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'question_id'
 
@@ -447,14 +449,14 @@ class QuestionResultRawViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         question = Question.objects.get(id=self.kwargs['question_id'])
         answer_type = question.get_answer_content_type()
-
+        
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
         response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
             date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:15]
         )
-
+        
         if answer_type == 'option':
             answers = self.get_queryset().prefetch_related('option').values_list('option__content', flat=True)
         elif answer_type == 'content_numeric':
@@ -523,6 +525,57 @@ class QuestionResultRawViewSet(ModelViewSet):
         bar.set_categories(labels)
         bar.shape = 4
         ws2.add_chart(bar, "D3")
+        
+        workbook.save(response)
+        return response
+        
 
+class SurveyResultRawViewSet(ModelViewSet):
+    lookup_url_kwarg = 'survey_id'
+
+    def get_queryset(self):
+        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
+        question_query = Question.objects.filter(item_id__in=items_query)
+        return question_query
+
+    def retrieve(self, request, *args, **kwargs):
+        survey = Survey.objects.get(id=self.kwargs['survey_id'])
+        
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
+            date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey.title[:10]
+        )
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = f'"{survey.title[:15]}" results'
+
+        column_titles = [question.value for question in self.get_queryset()]
+        row_num = 1
+        for col_num, column_title in enumerate(column_titles, 1):
+            cell = worksheet.cell(row=row_num, column=col_num)
+            cell.value = column_title
+            cell.font = Font(name='Calibri', bold=True)
+            cell.border = Border(bottom=Side(border_style='medium', color='FF000000'),)
+            column_letter = get_column_letter(col_num)
+            column_dimensions = worksheet.column_dimensions[column_letter]
+            column_dimensions.width = 30
+
+        row_num = 2
+        col_num = 1
+        for question in self.get_queryset():
+            answer_queryset = Answer.objects.filter(question_id=question.id)
+            col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
+
+            for cell_value in col_data:
+                cell = worksheet.cell(row=row_num, column=col_num)
+                cell.value = cell_value
+                row_num += 1
+
+            row_num = 2
+            col_num += 1
+
+        worksheet.freeze_panes = worksheet['A2']
         workbook.save(response)
         return response
