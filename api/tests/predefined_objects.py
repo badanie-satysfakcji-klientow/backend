@@ -1,6 +1,6 @@
 from random import randint
 
-from api.models import Creator, Survey, Item, Option, Question
+from api.models import Creator, Survey, Item, Option, Question, Answer, Submission, Interviewee
 from lorem_text import lorem
 
 
@@ -53,4 +53,29 @@ class Predefined:
         return [Option.objects.create(
             content=lorem.words(5),
             item=item
+        ) for _ in range(count)]
+
+    @staticmethod
+    def create_submission(survey: Survey, interviewee: Interviewee):
+        return Submission.objects.create(
+            survey=survey,
+            interviewee=interviewee
+        )
+
+    @staticmethod
+    def create_interviewee():
+        return Interviewee.objects.create(
+            email=f'{lorem.words(1)}@{lorem.words(1)}.{lorem.words(1)}',
+            first_name=lorem.words(1),
+            last_name=lorem.words(1)
+        )
+
+    @staticmethod
+    def create_answers(question: Question, submission: Submission, count: int = 1):
+        return [Answer.objects.create(
+            question=question,
+            submission=submission,
+            content_character=None,
+            content_numeric=None,
+            option=None
         ) for _ in range(count)]
