@@ -1,4 +1,5 @@
 import datetime
+from collections import Counter
 
 from django.db.models import F
 from rest_framework import status, serializers
@@ -24,6 +25,13 @@ from django.http import HttpResponse
 import pandas as pd
 import csv
 from openpyxl import Workbook
+from openpyxl.chart import (
+    PieChart,
+    ProjectedPieChart,
+    Reference,
+    BarChart
+)
+from openpyxl.chart.label import DataLabelList
 
 
 class SurveyViewSet(ModelViewSet):
@@ -434,22 +442,86 @@ class QuestionResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'question_id'
 
     def get_queryset(self):
-        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
-        question_query = Question.objects.filter(item_id__in=items_query)
-        return question_query
+        return Answer.objects.filter(question=Question.objects.get(id=self.kwargs['question_id']))
 
     def retrieve(self, request, *args, **kwargs):
         question = Question.objects.get(id=self.kwargs['question_id'])
+        answer_type = question.get_answer_content_type()
 
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
         response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
-            date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:10]
+            date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:15]
         )
+
+        if answer_type == 'option':
+            answers = self.get_queryset().prefetch_related('option').values_list('option__content', flat=True)
+        elif answer_type == 'content_numeric':
+            answers = self.get_queryset().values_list('content_numeric', flat=True)
+        elif answer_type == 'content_character':
+            answers = self.get_queryset().values_list('content_character', flat=True)
+            answers = [' '.join(content_character.lower().strip().split()) for content_character in answers]
+        else:
+            return Response({'status': 'error', 'message': 'question without item_type'},
+                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+        counted = Counter(answers)
+        statement = len(counted) > 5
+        counted = counted.most_common(5) if statement else counted.most_common()
+        max_row = len(counted)
+
         workbook = Workbook()
         worksheet = workbook.active
-        worksheet.title = f'"{question.value[:10]}" results'
+        worksheet.title = f'"{question.value[:15]}" pie'
+
+        # normal pie
+        for row in counted:
+            worksheet.append(row)
+        pie = PieChart()
+        labels = Reference(worksheet, min_col=1, min_row=1, max_row=max_row)
+        data = Reference(worksheet, min_col=2, min_row=1, max_row=max_row)
+        pie.add_data(data)
+        pie.set_categories(labels)
+        pie.title = question.value
+        pie.dataLabels = DataLabelList()
+        pie.dataLabels.showVal = True
+        worksheet.add_chart(pie, "D1")
+
+        # projected pie
+        ws = workbook.create_sheet(title=f'"{question.value[:15]}" projection')
+        for row in counted:
+            ws.append(row)
+        projected_pie = ProjectedPieChart()
+        projected_pie.type = "bar"
+        projected_pie.splitType = "pos"  # split by value
+        labels = Reference(ws, min_col=1, min_row=1, max_row=max_row)
+        data = Reference(ws, min_col=2, min_row=1, max_row=max_row)
+        projected_pie.add_data(data)
+        projected_pie.dataLabels = DataLabelList()
+        projected_pie.dataLabels.showVal = True
+        projected_pie.set_categories(labels)
+        projected_pie.title = question.value
+        ws.add_chart(projected_pie, "D2")
+
+        # bar
+        ws2 = workbook.create_sheet(title=f'"{question.value[:15]}" bar')
+        for row in counted:
+            ws2.append(row)
+        bar = BarChart()
+        bar.type = "col"
+        # bar.style = 10
+        bar.title = question.value
+        bar.y_axis.title = "Ilość wystąpień"
+        bar.x_axis.title = "Udzielone odpowiedzi"
+        labels = Reference(ws2, min_col=1, min_row=1, max_row=max_row)
+        data = Reference(ws2, min_col=2, min_row=1, max_row=max_row)
+        bar.dataLabels = DataLabelList()
+        bar.dataLabels.showVal = True
+        bar.add_data(data)
+        bar.set_categories(labels)
+        bar.shape = 4
+        ws2.add_chart(bar, "D3")
 
         workbook.save(response)
         return response
