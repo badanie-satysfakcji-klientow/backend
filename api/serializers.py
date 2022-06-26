@@ -110,14 +110,24 @@ class ItemSerializer(serializers.ModelSerializer):
         return [key for key, value in self.type_map.items() if value == self.context['type']][0]
 
     def create(self, validated_data):
-        questions = validated_data.pop('questions')
+        try:
+            questions = validated_data.pop('questions')
+        except KeyError:
+            raise serializers.ValidationError('No questions given for item')
+
         # case when no option is needed (e.g. numeric)
         try:
             options = validated_data.pop('options')
         except KeyError:
             options = None
+
+        # case when wrong str type were given
+        try:
+            validated_data['type'] = self.inv_type_map[self.context['type']]
+        except KeyError:
+            raise serializers.ValidationError('Invalid type given for item')
+
         validated_data['survey_id'] = self.context['survey_id']
-        validated_data['type'] = self.inv_type_map[self.context['type']]
         item = Item.objects.create(**validated_data)
         if questions:
             # get max order index from questions in survey
@@ -160,7 +170,7 @@ class ItemGetSerializer(serializers.ModelSerializer):
 
     def get_questions(self, instance):
         questions = Question.objects.filter(item_id=instance.id).order_by('order')
-        if len(questions) == 0:
+        if not questions:
             raise serializers.ValidationError('No questions found for item')
 
         return QuestionSerializer(questions, many=True).data
@@ -330,16 +340,19 @@ class SectionSerializer(serializers.ModelSerializer):
         if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
             raise serializers.ValidationError('End item not found')
 
-        # check if start_item is before end_item
-        if not (start_item_order := Question.objects
-                .filter(item_id=attrs['start_item'].id)
-                .order_by('order')
-                .first().order) <= \
-               (end_item_order := Question.objects
-                .filter(item_id=attrs['end_item'].id)
-                .order_by('order')
-                .first().order):
-            raise serializers.ValidationError('Start item must be before or equal to end item')
+        try:
+            # check if start_item is before end_item
+            if not (start_item_order := Question.objects
+                    .filter(item_id=attrs['start_item'].id)
+                    .order_by('order')
+                    .first().order) <= \
+                   (end_item_order := Question.objects
+                    .filter(item_id=attrs['end_item'].id)
+                    .order_by('order')
+                    .first().order):
+                raise serializers.ValidationError('Start item must be before or equal to end item')
+        except AttributeError:
+            raise serializers.ValidationError('Start item or end item not found')
 
         # check if sections overlap
         sections = Section.objects.select_related('start_item', 'end_item') \

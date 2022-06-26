@@ -37,6 +37,14 @@ class SurveyViewSet(ModelViewSet):
         return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
                         headers=headers)
 
+    def retrieve(self, request, *args, **kwargs):
+        try:
+            instance = self.get_object()
+            serializer = self.get_serializer(instance)
+            return Response(serializer.data)
+        except AttributeError as e:
+            return Response({'status': 'error', 'message': e.args})
+
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
     def retrieve_brief(self, request, *args, **kwargs):  # use prefetch_related
         surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])

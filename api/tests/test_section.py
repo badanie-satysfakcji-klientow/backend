@@ -123,3 +123,22 @@ class SectionAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Section.objects.count(), 3)
+
+    def test_can_not_create_section_without_question(self):
+        # create item without question
+        no_question_item = Item.objects.create(
+            type=1,
+            required=True,
+            survey_id=self.survey.id,
+        )
+
+        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        response = self.client.post(url, {
+            'start_item': no_question_item.id,
+            'end_item': no_question_item.id,
+            'title': lorem.words(5),
+            'description': lorem.sentence(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Section.objects.count(), 0)
