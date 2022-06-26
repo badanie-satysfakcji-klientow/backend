@@ -437,6 +437,18 @@ class CreatorViewSet(ModelViewSet):
     lookup_url_kwarg = 'creator_id'
     queryset = Creator.objects.all()
 
+    def check_destroy(self, request, *args, **kwargs):
+        if str(request.data.get('current_user')) != str(kwargs.get('creator_id')):
+            return Response({'status': 'error', 'message': 'Only creator can delete himself'},
+                            status.HTTP_400_BAD_REQUEST)
+        return self.destroy(request, *args, **kwargs)
+
+    def check_partial_update(self, request, *args, **kwargs):
+        if str(request.data.get('current_user')) != str(kwargs.get('creator_id')):
+            return Response({'status': 'error', 'message': 'Only creator can update his data'},
+                            status.HTTP_400_BAD_REQUEST)
+        return self.partial_update(request, *args, **kwargs)
+
 
 class SurveyResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'survey_id'
