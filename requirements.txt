@@ -5,3 +5,4 @@ django-background-tasks
 psycopg2~=2.9.3
 django-cors-headers
 pandas
+openpyxl

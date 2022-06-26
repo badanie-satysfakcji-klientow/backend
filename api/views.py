@@ -23,6 +23,7 @@ from django.urls import reverse
 from django.http import HttpResponse
 import pandas as pd
 import csv
+from openpyxl import Workbook
 
 
 class SurveyViewSet(ModelViewSet):
@@ -427,3 +428,28 @@ class PreconditionViewSet(ModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
+
+
+class QuestionResultRawViewSet(ModelViewSet):
+    lookup_url_kwarg = 'question_id'
+
+    def get_queryset(self):
+        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
+        question_query = Question.objects.filter(item_id__in=items_query)
+        return question_query
+
+    def retrieve(self, request, *args, **kwargs):
+        question = Question.objects.get(id=self.kwargs['question_id'])
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        )
+        response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
+            date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:10]
+        )
+        workbook = Workbook()
+        worksheet = workbook.active
+        worksheet.title = f'"{question.value[:10]}" results'
+
+        workbook.save(response)
+        return response
