@@ -22,6 +22,8 @@ from django.http import HttpResponse
 import pandas as pd
 import csv
 from openpyxl import Workbook
+from openpyxl.styles import Font, Border, Side
+from openpyxl.utils import get_column_letter
 
 
 class SurveyViewSet(ModelViewSet):
@@ -389,36 +391,37 @@ class SurveyResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'survey_id'
 
     def get_queryset(self):
-        submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
-        answers_query = Answer.objects \
-            .select_related('question') \
-            .filter(submission__in=submission_queryset).values_list('question_id', flat=True)
-        return answers_query
+        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
+        question_query = Question.objects.filter(item_id__in=items_query)
+        return question_query
 
     def retrieve(self, request, *args, **kwargs):
+        survey = Survey.objects.get(id=self.kwargs['survey_id'])
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
-        response['Content-Disposition'] = 'attachment; filename={date}-results.xlsx'.format(
-            date=datetime.datetime.now().strftime('%Y-%m-%d'),
+        response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
+            date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey.title[:10]
         )
         workbook = Workbook()
-
         worksheet = workbook.active
-        survey = Survey.objects.get(id=self.kwargs['survey_id'])
-        worksheet.title = f'Survey "{survey.title}" results'
+        worksheet.title = f'"{survey.title[:15]}" results'
 
-        items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
-        question_query = Question.objects.filter(item_id__in=items_query)
-        columns = [q.value for q in question_query]
+        column_titles = [question.value for question in self.get_queryset()]
         row_num = 1
-        for col_num, column_title in enumerate(columns, 1):
+        for col_num, column_title in enumerate(column_titles, 1):
             cell = worksheet.cell(row=row_num, column=col_num)
             cell.value = column_title
+            cell.font = Font(name='Calibri', bold=True)
+            cell.border = Border(bottom=Side(border_style='medium', color='FF000000'),)
+            column_letter = get_column_letter(col_num)
+            column_dimensions = worksheet.column_dimensions[column_letter]
+            column_dimensions.width = 30
 
         row_num = 2
         col_num = 1
-        for question in question_query:
+        for question in self.get_queryset():
             answer_queryset = Answer.objects.filter(question_id=question.id)
             col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
 
@@ -430,6 +433,6 @@ class SurveyResultRawViewSet(ModelViewSet):
             row_num = 2
             col_num += 1
 
+        worksheet.freeze_panes = worksheet['A2']
         workbook.save(response)
-
         return response
