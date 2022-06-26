@@ -1,9 +1,6 @@
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from io import BytesIO
-from api.models import Interviewee, Creator, Survey
-from lorem_text import lorem
 from api.tests.predefined_objects import Predefined
 
 
