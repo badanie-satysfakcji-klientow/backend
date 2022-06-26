@@ -27,7 +27,7 @@ class CreatorAPITest(APITestCase):
 
     def test_can_update_creator(self):
         url = reverse('creator-uuid', kwargs={'creator_id': self.creator.id})
-        response = self.client.patch(url, {'password': 'new content'})
+        response = self.client.patch(url, {'current_user': self.creator.id, 'password': 'new content'})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Creator.objects.get(id=self.creator.id).password, 'new content')
@@ -41,7 +41,7 @@ class CreatorAPITest(APITestCase):
 
     def test_can_delete_interviewee(self):
         url = reverse('creator-uuid', kwargs={'creator_id': self.creator.id})
-        response = self.client.delete(url)
+        response = self.client.delete(url, {'current_user': self.creator.id})
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Creator.objects.count(), 0)
