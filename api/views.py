@@ -439,7 +439,6 @@ class PreconditionViewSet(ModelViewSet):
     queryset = Precondition.objects.all()
 
 
-
 class QuestionResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'question_id'
 
@@ -449,14 +448,14 @@ class QuestionResultRawViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         question = Question.objects.get(id=self.kwargs['question_id'])
         answer_type = question.get_answer_content_type()
-        
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
         response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
             date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:15]
         )
-        
+
         if answer_type == 'option':
             answers = self.get_queryset().prefetch_related('option').values_list('option__content', flat=True)
         elif answer_type == 'content_numeric':
@@ -525,10 +524,10 @@ class QuestionResultRawViewSet(ModelViewSet):
         bar.set_categories(labels)
         bar.shape = 4
         ws2.add_chart(bar, "D3")
-        
+
         workbook.save(response)
         return response
-        
+
 
 class SurveyResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'survey_id'
@@ -540,7 +539,7 @@ class SurveyResultRawViewSet(ModelViewSet):
 
     def retrieve(self, request, *args, **kwargs):
         survey = Survey.objects.get(id=self.kwargs['survey_id'])
-        
+
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
         )
