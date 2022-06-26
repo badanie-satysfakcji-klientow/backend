@@ -227,23 +227,36 @@ class SendEmailViewSet(ModelViewSet):
         send a mail with link to survey
         eg. http://127.0.0.1:4200/survey/survey_uuid
         """
+        selected_interviewees = request.query_params.get('selected')
         survey_id = kwargs['survey_id']
+
+        if not selected_interviewees:
+            try:
+                email_list = request.data['email_list']
+                send_my_mass_mail(survey_id, email_list)
+            except KeyError as e:
+                hint = "Provide correct email list eg. {'email_list': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
+                return Response(
+                    {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
+            except Exception as e:
+                return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
+                                status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response({'survey_id': survey_id, 'status': 'sending process started'},
+                            status=status.HTTP_200_OK)
+
         try:
             interviewees = request.data['interviewees']
+            selected_interviewees_emails = \
+                [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
+            send_my_mass_mail(survey_id, selected_interviewees_emails)
         except KeyError as e:
             hint = "Provide correct interviewee id list eg.  " \
                    "{'interviewees': ['7d01d6b3-df2a-42fc-ab9e-ffe5f39a9685', '8e813c93-37a7-429f-926c-0ac092b30c79']}"
             return Response(
                 {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
-
-        try:
-            selected_interviewees_emails = \
-                [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
-            send_my_mass_mail(survey_id, selected_interviewees_emails)
         except Exception as e:
             return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
         return Response({'survey_id': survey_id, 'status': 'sending process started'}, status=status.HTTP_200_OK)
 
 
