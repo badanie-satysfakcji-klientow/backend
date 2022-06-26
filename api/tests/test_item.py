@@ -67,3 +67,21 @@ class ItemAPITest(APITestCase):
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Item.objects.count(), 0)
+
+    def test_can_not_create_item_without_questions(self):
+        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
+        response = self.client.post(url, {'type': 'openShort', 'required': True, 'survey_id': self.survey.id})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Item.objects.count(), 0)
+        self.assertEqual(response.data[0], 'No questions given for item')
+
+    def test_can_not_create_item_with_unknown_type(self):
+        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
+        response = self.client.post(url, {'type': 'something',
+                                          'required': True,
+                                          'survey_id': self.survey.id,
+                                          'questions': ["What is your name?", "What is your age?"]})
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Item.objects.count(), 0)
