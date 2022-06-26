@@ -160,6 +160,9 @@ class ItemGetSerializer(serializers.ModelSerializer):
 
     def get_questions(self, instance):
         questions = Question.objects.filter(item_id=instance.id).order_by('order')
+        if len(questions) == 0:
+            raise serializers.ValidationError('No questions found for item')
+
         return QuestionSerializer(questions, many=True).data
 
     def get_options(self, instance):
