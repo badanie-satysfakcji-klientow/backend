@@ -166,7 +166,7 @@ class ShowSurveyBriefInfoAPITest(APITestCase):
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['surveys']), 5)
+        self.assertEqual(len(response.json()['results']), 5)
 
 
 class SendSurveyAPITest(APITestCase):
