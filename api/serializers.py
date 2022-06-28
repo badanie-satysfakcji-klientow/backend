@@ -233,9 +233,17 @@ class SubmissionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs['survey'] = Survey.objects.get(id=self.context['survey_id'])
-        # check if user already submitted
-        if Submission.objects.filter(survey_id=attrs['survey'].id, interviewee=attrs['interviewee'].id).exists():
-            raise serializers.ValidationError('User already submitted')
+        #  anonimowa
+        if attrs['survey'].anonymous:
+            attrs['interviewee'] = None
+            return attrs
+
+        # jawna
+        try:
+            if Submission.objects.filter(survey_id=attrs['survey'].id, interviewee=attrs['interviewee'].id).exists():
+                raise serializers.ValidationError('User already submitted')
+        except KeyError:
+            raise serializers.ValidationError('You must provide valid interviewee for non anonymous survey')
         return attrs
 
 
