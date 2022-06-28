@@ -12,14 +12,6 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
-from django.core.mail import send_mass_mail
-from django.core.mail import get_connection, EmailMultiAlternatives
-from threading import Thread
-
-from django.template.loader import render_to_string
-from django.utils.html import strip_tags
-from django.conf import settings
-from django.urls import reverse
 from django.http import HttpResponse
 import pandas as pd
 import csv
@@ -33,6 +25,7 @@ from openpyxl.chart import (
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
+from api.emails import send_my_mass_mail
 
 from .viewsets import CustomModelViewSet
 
@@ -275,11 +268,12 @@ class SendEmailViewSet(ModelViewSet):
         """
         selected_interviewees = request.query_params.get('selected')
         survey_id = kwargs['survey_id']
+        survey_title = Survey.objects.get(id=survey_id).title
 
         if not selected_interviewees:
             try:
                 email_list = request.data['interviewees']
-                send_my_mass_mail(survey_id, email_list)
+                send_my_mass_mail(survey_id, survey_title, email_list)
             except KeyError as e:
                 hint = "Provide correct email list eg. {'interviewees': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
                 return Response(
@@ -294,7 +288,7 @@ class SendEmailViewSet(ModelViewSet):
             interviewees = request.data['interviewees']
             selected_interviewees_emails = \
                 [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
-            send_my_mass_mail(survey_id, selected_interviewees_emails)
+            send_my_mass_mail(survey_id, survey_title, selected_interviewees_emails)
         except KeyError as e:
             hint = "Provide correct interviewee id list eg.  " \
                    "{'interviewees': ['7d01d6b3-df2a-42fc-ab9e-ffe5f39a9685', '8e813c93-37a7-429f-926c-0ac092b30c79']}"
@@ -304,52 +298,6 @@ class SendEmailViewSet(ModelViewSet):
             return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         return Response({'survey_id': survey_id, 'status': 'sending process started'}, status=status.HTTP_200_OK)
-
-
-def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
-    """
-    Given a datatuple of (subject, text_content, html_content, from_email,
-    recipient_list), sends each message to each recipient list. Returns the
-    number of emails sent.
-
-    If from_email is None, the DEFAULT_FROM_EMAIL setting is used.
-    If auth_user and auth_password are set, they're used to log in.
-    If auth_user is None, the EMAIL_HOST_USER setting is used.
-    If auth_password is None, the EMAIL_HOST_PASSWORD setting is used.
-
-    """
-    connection = connection or get_connection(
-        username=user, password=password, fail_silently=fail_silently)
-    messages = []
-    for subject, text, html, from_email, recipient in datatuple:
-        message = EmailMultiAlternatives(subject, text, from_email, recipient)
-        message.attach_alternative(html, 'text/html')
-        messages.append(message)
-    return connection.send_messages(messages)
-
-
-def send_my_mass_mail(survey_id, email_list, html=True) -> None:
-    """
-    starts new thread sending mass email (to prevent API freeze) - significantly speeds up the request
-    current link to survey: http://127.0.0.1:4200/survey/<survey_id>
-    """
-    survey = Survey.objects.get(pk=survey_id)
-    survey_title = survey.title
-    partial_link = reverse('survey-detail', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
-    survey_link = settings.DOMAIN_NAME + partial_link
-
-    context = {'link': survey_link}
-    html_message = render_to_string('email_template.html', context=context)
-    txt_message = strip_tags(html_message)
-
-    if html:
-        data_tuple_html = ((survey_title, txt_message, html_message, None, email_list),)
-        t = Thread(target=send_mass_html_mail, args=(data_tuple_html,))
-        t.start()
-    else:
-        data_tuple_txt = ((survey_title, txt_message, None, email_list),)
-        t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
-        t.start()
 
 
 class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
@@ -377,14 +325,8 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
         file = serializer.validated_data['file']
         try:
             csv_reader = pd.read_csv(file, sep=';', encoding='utf8')
-        except pd.errors.EmptyDataError:
-            return Response({'status': 'error', 'message': 'selected file is empty or not .csv',
-                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        new_interviewee_list = []
-        already_exists = []
-        try:
+            new_interviewee_list = []
+            already_exists = []
             for idx, row in csv_reader.iterrows():
                 new_interviewee = Interviewee(
                     email=row['email'],
@@ -393,6 +335,10 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
                 )
                 already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
                     new_interviewee_list.append(new_interviewee)
+        except pd.errors.EmptyDataError:
+            return Response({'status': 'error', 'message': 'selected file is empty or is not .csv',
+                             'hint': 'provide CSV with 3 cols with ";" separator eg. email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
         except KeyError:
             return Response({'status': 'error',
                              "message": "selected file doesnt contain 'email', 'first_name' or 'last_name' column",
@@ -401,8 +347,9 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
+            survey_title = Survey.objects.get(id=survey_id).title
             try:
-                send_my_mass_mail(survey_id, email_list)
+                send_my_mass_mail(survey_id, survey_title, email_list)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error during sending email',
                                  'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
