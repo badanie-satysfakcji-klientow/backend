@@ -255,7 +255,7 @@ class SendEmailViewSet(ModelViewSet):
         """
         selected_interviewees = request.query_params.get('selected')
         survey_id = kwargs['survey_id']
-        survey_title = Survey.objects.get(id=survey_id)
+        survey_title = Survey.objects.get(id=survey_id).title
 
         if not selected_interviewees:
             try:
@@ -310,14 +310,8 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
         file = serializer.validated_data['file']
         try:
             csv_reader = pd.read_csv(file, sep=';', encoding='utf8')
-        except pd.errors.EmptyDataError:
-            return Response({'status': 'error', 'message': 'selected file is empty or not .csv',
-                             'hint': 'provide CSV with 3 cols: email;first_name;last_name'},
-                            status=status.HTTP_400_BAD_REQUEST)
-
-        new_interviewee_list = []
-        already_exists = []
-        try:
+            new_interviewee_list = []
+            already_exists = []
             for idx, row in csv_reader.iterrows():
                 new_interviewee = Interviewee(
                     email=row['email'],
@@ -326,6 +320,10 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
                 )
                 already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
                     new_interviewee_list.append(new_interviewee)
+        except pd.errors.EmptyDataError:
+            return Response({'status': 'error', 'message': 'selected file is empty or is not .csv',
+                             'hint': 'provide CSV with 3 cols with ";" separator eg. email;first_name;last_name'},
+                            status=status.HTTP_400_BAD_REQUEST)
         except KeyError:
             return Response({'status': 'error',
                              "message": "selected file doesnt contain 'email', 'first_name' or 'last_name' column",
@@ -334,7 +332,7 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
-            survey_title = Survey.objects.get(survey_id)
+            survey_title = Survey.objects.get(id=survey_id).title
             try:
                 send_my_mass_mail(survey_id, survey_title, email_list)
             except Exception as e:

@@ -39,10 +39,7 @@ def send_my_mass_mail(survey_id, survey_title, email_list, html=True) -> None:
     # ^ pointless
 
     partial_link = f'/survey/{survey_id}'
-    if settings.DEBUG:
-        survey_link = settings.LOCALHOST_DOMAIN_NAME + partial_link
-    else:
-        survey_link = settings.DOMAIN_NAME + partial_link
+    survey_link = settings.DOMAIN_NAME + partial_link
 
     context = {'link': survey_link}
     html_message = render_to_string('email_template.html', context=context)
