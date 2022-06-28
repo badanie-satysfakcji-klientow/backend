@@ -34,11 +34,12 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
 
+from .viewsets import CustomModelViewSet
+
 
 class SurveyViewSet(ModelViewSet):
     queryset = Survey.objects.prefetch_related('items')
     serializer_class = SurveySerializer
-    lookup_url_kwarg = 'survey_id'
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -63,10 +64,11 @@ class SurveyViewSet(ModelViewSet):
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
 
 
-class ItemViewSet(ModelViewSet):
+class ItemViewSet(CustomModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
-    lookup_url_kwarg = 'item_id'
+    lookup_url_kwarg = 'id'
+    methods = ['create', 'update', 'partial_update', 'destroy']
 
     # TODO: override get_serializer_context
 
@@ -101,8 +103,9 @@ class ItemViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AnswersCountViewSet(ModelViewSet):
+class AnswersCountViewSet(CustomModelViewSet):
     serializer_class = AnswerQuestionCountSerializer
+    methods = ['list']
 
     def get_queryset(self):
         submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
@@ -120,9 +123,9 @@ class AnswersCountViewSet(ModelViewSet):
         pass
 
 
-class SubmissionViewSet(ModelViewSet):
+class SubmissionViewSet(CustomModelViewSet):
     serializer_class = SubmissionSerializer
-
+    methods = ['create']
     # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs):
@@ -138,9 +141,10 @@ class SubmissionViewSet(ModelViewSet):
                         status=status.HTTP_201_CREATED)
 
 
-class AnswerViewSet(ModelViewSet):
+class AnswerViewSet(CustomModelViewSet):
     queryset = Answer.objects.all()
     serializer_class = AnswerSerializer
+    methods = ['create', 'update', 'partial_update']
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -152,7 +156,6 @@ class AnswerViewSet(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        instance = Answer.objects.get(id=kwargs['answer_id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.context['question_id'] = kwargs.get('question_id')
         serializer.is_valid(raise_exception=True)
@@ -166,9 +169,10 @@ class AnswerViewSet(ModelViewSet):
         return Response(serializer.data)
 
 
-class SectionViewSet(ModelViewSet):
+class SectionViewSet(CustomModelViewSet):
     serializer_class = SectionSerializer
     queryset = Section.objects.all()
+    methods = ['list', 'create']
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -184,10 +188,10 @@ class SectionViewSet(ModelViewSet):
                         status=status.HTTP_201_CREATED)
 
 
-class QuestionViewSet(ModelViewSet):
+class QuestionViewSet(CustomModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
-    lookup_url_kwarg = 'question_id'
+    methods = ['update', 'partial_update', 'destroy']
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -197,11 +201,10 @@ class QuestionViewSet(ModelViewSet):
         return Response({'status': 'deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class OptionViewSet(ModelViewSet):
+class OptionViewSet(CustomModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
-
-    lookup_url_kwarg = 'option_id'
+    methods = ['update', 'partial_update', 'destroy']
 
     def update(self, request, *args, **kwargs):
         """
@@ -216,10 +219,10 @@ class OptionViewSet(ModelViewSet):
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SurveyResultViewSet(ModelViewSet):
+class SurveyResultViewSet(CustomModelViewSet):
     serializer_class = SurveyResultSerializer
     queryset = Survey.objects.all()
-    lookup_url_kwarg = 'survey_id'
+    methods = ['list', 'retrieve']
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -241,18 +244,21 @@ class SurveyResultViewSet(ModelViewSet):
                         status=status.HTTP_200_OK)
 
 
-class SurveyResultFullViewSet(SurveyResultViewSet):
+class SurveyResultFullViewSet(CustomModelViewSet):
     serializer_class = SurveyResultFullSerializer
+    methods = ['retrieve']
 
 
 class IntervieweeViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
     serializer_class = IntervieweeSerializer
-    lookup_url_kwarg = 'interviewee_id'
 
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
+
+    # TODO: think of changing this to create
+    # methods = ['create']
 
     @action(detail=False, methods=['POST'])
     def send(self, request, *args, **kwargs):
@@ -322,7 +328,7 @@ def send_my_mass_mail(survey_id, email_list, html=True) -> None:
     """
     survey = Survey.objects.get(pk=survey_id)
     survey_title = survey.title
-    partial_link = reverse('surveys-uuid', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
+    partial_link = reverse('survey-detail', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
     survey_link = settings.DOMAIN_NAME + partial_link
 
     context = {'link': survey_link}
@@ -347,6 +353,8 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
     def get_email_list(already_exists, new_interviewee_list):
         csv_interviewees = already_exists + new_interviewee_list
         return [interviewee.email for interviewee in csv_interviewees]
+
+    # TODO: think of changing this to create & retrieve
 
     @action(detail=False, methods=['POST'])
     def upload_csv(self, request, *args, **kwargs):
@@ -432,15 +440,14 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
         return response
 
 
-# for Preconditions
-class PreconditionViewSet(ModelViewSet):
+class PreconditionViewSet(CustomModelViewSet):
     serializer_class = PreconditionSerializer
-    lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
+    methods = ['list', 'create', 'update', 'partial_update', 'destroy']  # all except for retrieve
 
 
-class QuestionResultRawViewSet(ModelViewSet):
-    lookup_url_kwarg = 'question_id'
+class QuestionResultRawViewSet(CustomModelViewSet):
+    methods = ['retrieve']
 
     def get_queryset(self):
         return Answer.objects.filter(question=Question.objects.get(id=self.kwargs['question_id']))
@@ -529,8 +536,8 @@ class QuestionResultRawViewSet(ModelViewSet):
         return response
 
 
-class SurveyResultRawViewSet(ModelViewSet):
-    lookup_url_kwarg = 'survey_id'
+class SurveyResultRawViewSet(CustomModelViewSet):
+    methods = ['retrieve']
 
     def get_queryset(self):
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
