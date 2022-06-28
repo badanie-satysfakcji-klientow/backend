@@ -51,7 +51,7 @@ class EmailAPITest(APITestCase):
 
     def test_can_send_survey_email_list(self):
         url = reverse('send-manually', kwargs={'survey_id': self.survey.id})
-        response = self.client.post(url, {'email_list': self.email_list})
+        response = self.client.post(url, {'interviewees': self.email_list})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['survey_id'], str(self.survey.id))

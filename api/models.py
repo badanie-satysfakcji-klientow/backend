@@ -101,6 +101,17 @@ class Question(models.Model):
     def get_item_type(self):
         return self.item.type
 
+    def get_answer_content_type(self):
+        content_map = {
+            (1, 2, 3, 10, 11): 'option',
+            (7, 8): 'content_character',
+            (4, 5, 6, 9): 'content_numeric'
+        }
+        for key, val in content_map.items():
+            if self.item.type in key:
+                return val
+        return None
+
 
 class Answer(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
@@ -146,7 +157,7 @@ class Precondition(models.Model):
 class Submission(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    survey = models.ForeignKey('Survey', models.DO_NOTHING)
+    survey = models.ForeignKey('Survey', models.CASCADE)
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:

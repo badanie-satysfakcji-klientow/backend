@@ -24,3 +24,12 @@ class XLXSAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(response['Content-Disposition'].startswith(f'attachment; filename={self.survey.title[:10]}'))
         self.assertTrue(response['Content-Disposition'].endswith('.xlsx'))
+
+    def test_export_question_chart_answers_xlsx(self):
+        url = reverse('question-results-raw', kwargs={'question_id': self.item1_questions[0].id})
+        response = self.client.get(url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertTrue(response['Content-Disposition']
+                        .startswith(f'attachment; filename={self.item1_questions[0].value[:15]}'))
+        self.assertTrue(response['Content-Disposition'].endswith('.xlsx'))
