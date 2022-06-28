@@ -10,8 +10,10 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
+    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
+    CreatorSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator
+
 from django.http import HttpResponse
 import pandas as pd
 import csv
@@ -384,6 +386,26 @@ class PreconditionViewSet(ModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'precondition_id'
     queryset = Precondition.objects.all()
+
+
+class CreatorViewSet(ModelViewSet):
+    serializer_class = CreatorSerializer
+    lookup_url_kwarg = 'creator_id'
+    queryset = Creator.objects.all()
+    hint = "Provide correct current_user id eg. " \
+           "{'current_user': '8e813c93-37a7-429f-926c-0ac092b30c79'}"
+
+    def check_destroy(self, request, *args, **kwargs):
+        if str(request.data.get('current_user')) != str(kwargs.get('creator_id')):
+            return Response({'status': 'error', 'message': 'Only creator can delete himself', 'hint': self.hint},
+                            status.HTTP_400_BAD_REQUEST)
+        return self.destroy(request, *args, **kwargs)
+
+    def check_partial_update(self, request, *args, **kwargs):
+        if str(request.data.get('current_user')) != str(kwargs.get('creator_id')):
+            return Response({'status': 'error', 'message': 'Only creator can update his data', 'hint': self.hint},
+                            status.HTTP_400_BAD_REQUEST)
+        return self.partial_update(request, *args, **kwargs)
 
 
 class QuestionResultRawViewSet(ModelViewSet):

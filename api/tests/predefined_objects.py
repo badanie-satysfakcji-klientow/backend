@@ -9,7 +9,8 @@ class Predefined:
     def create_creator():
         return Creator.objects.create(
             email=lorem.words(1) + '@test.com',
-            password=lorem.words(1).replace(' ', '')
+            password=lorem.words(1).replace(' ', ''),
+            phone=lorem.words(1)
         )
 
     @staticmethod
