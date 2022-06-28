@@ -40,6 +40,7 @@ from .viewsets import CustomModelViewSet
 class SurveyViewSet(ModelViewSet):
     queryset = Survey.objects.prefetch_related('items')
     serializer_class = SurveySerializer
+    lookup_url_kwarg = 'id'
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -144,6 +145,7 @@ class SubmissionViewSet(CustomModelViewSet):
 class AnswerViewSet(CustomModelViewSet):
     queryset = Answer.objects.all()
     serializer_class = AnswerSerializer
+    lookup_url_kwarg = 'id'
     methods = ['create', 'update', 'partial_update']
 
     def create(self, request, *args, **kwargs):
@@ -156,6 +158,7 @@ class AnswerViewSet(CustomModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
+        instance = Answer.objects.get(id=kwargs['id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.context['question_id'] = kwargs.get('question_id')
         serializer.is_valid(raise_exception=True)
@@ -191,6 +194,7 @@ class SectionViewSet(CustomModelViewSet):
 class QuestionViewSet(CustomModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
+    lookup_url_kwarg = 'id'
     methods = ['update', 'partial_update', 'destroy']
 
     def destroy(self, request, *args, **kwargs):
@@ -204,6 +208,7 @@ class QuestionViewSet(CustomModelViewSet):
 class OptionViewSet(CustomModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
+    lookup_url_kwarg = 'id'
     methods = ['update', 'partial_update', 'destroy']
 
     def update(self, request, *args, **kwargs):
@@ -222,6 +227,7 @@ class OptionViewSet(CustomModelViewSet):
 class SurveyResultViewSet(CustomModelViewSet):
     serializer_class = SurveyResultSerializer
     queryset = Survey.objects.all()
+    lookup_url_kwarg = 'id'
     methods = ['list', 'retrieve']
 
     def retrieve(self, request, *args, **kwargs):
@@ -252,6 +258,7 @@ class SurveyResultFullViewSet(CustomModelViewSet):
 class IntervieweeViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
     serializer_class = IntervieweeSerializer
+    lookup_url_kwarg = 'id'
 
 
 class SendEmailViewSet(ModelViewSet):
@@ -442,11 +449,13 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
 class PreconditionViewSet(CustomModelViewSet):
     serializer_class = PreconditionSerializer
+    lookup_url_kwarg = 'id'
     queryset = Precondition.objects.all()
     methods = ['list', 'create', 'update', 'partial_update', 'destroy']  # all except for retrieve
 
 
 class QuestionResultRawViewSet(CustomModelViewSet):
+    lookup_url_kwarg = 'id'
     methods = ['retrieve']
 
     def get_queryset(self):
@@ -537,6 +546,7 @@ class QuestionResultRawViewSet(CustomModelViewSet):
 
 
 class SurveyResultRawViewSet(CustomModelViewSet):
+    lookup_url_kwarg = 'id'
     methods = ['retrieve']
 
     def get_queryset(self):
