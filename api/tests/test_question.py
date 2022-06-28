@@ -20,7 +20,7 @@ class QuestionAPITest(APITestCase):
     # def test_can_create_question(self):
     #    url = reverse('questions-answer', kwargs={'question_id': self.item.id})
     def test_can_update_question(self):
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[0].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[0].id})
         response = self.client.patch(url, {'value': 'new value'})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -30,7 +30,7 @@ class QuestionAPITest(APITestCase):
         # removing 3
         # before: 1, 2, 3, 4, 5
         # after: 1, 2, X, 3, 4
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[2].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[2].id})
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -43,7 +43,7 @@ class QuestionAPITest(APITestCase):
         # change 4 to 2
         # before: 1, 2, 3, 4, 5
         after = [1, 3, 4, 2, 5]
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[3].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[3].id})
         response = self.client.patch(url, {'order': 2})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -54,7 +54,7 @@ class QuestionAPITest(APITestCase):
         # change 2 to 4
         # before: 1, 2, 3, 4, 5
         after = [1, 4, 2, 3, 5]
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[1].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[1].id})
         response = self.client.patch(url, {'order': 4})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -63,7 +63,7 @@ class QuestionAPITest(APITestCase):
 
     def test_can_not_change_order_to_negative_number(self):
         # change 4 to -1 should fail
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[3].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[3].id})
         response = self.client.patch(url, {'order': -1})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -71,7 +71,7 @@ class QuestionAPITest(APITestCase):
 
     def test_can_not_change_questions_order_to_others_item_range(self):
         # change 4 to 6 should fail
-        url = reverse('questions-uuid', kwargs={'question_id': self.item1_questions[3].id})
+        url = reverse('question-detail', kwargs={'id': self.item1_questions[3].id})
         response = self.client.patch(url, {'order': 6})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)

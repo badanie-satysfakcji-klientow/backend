@@ -79,7 +79,7 @@ class AnswerAPITest(APITestCase):
         }
 
     def test_can_create_answer(self):
-        url = reverse('questions-answer', kwargs={'question_id': self.question.id})
+        url = reverse('answer-list', args=[self.question.id])
         # TODO: Resolve that conflict
         response = self.client.post(url, self.answer_data)
 
@@ -88,7 +88,7 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(Answer.objects.count(), 3)
 
     def test_can_update_answer(self):
-        url = reverse('questions-answer-update', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        url = reverse('answer-detail', args=[self.question.id, self.answer.id])
         response = self.client.patch(url, {
             'submission': self.submission.id,
             'content_character': 'new content',
