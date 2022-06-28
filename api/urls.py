@@ -15,6 +15,9 @@ interviewee_router.register(r'interviewees', IntervieweeViewSet)
 question_router = routers.SimpleRouter(trailing_slash=False)
 question_router.register(r'questions', QuestionViewSet)
 
+# creator_router = routers.SimpleRouter(trailing_slash=False)
+# creator_router.register(r'creators', CreatorViewSet) uncomment when creator CRUD added
+
 answer_router = routers.NestedSimpleRouter(
     question_router,
     r'questions',
@@ -35,6 +38,14 @@ precondition_router = routers.NestedSimpleRouter(
     lookup='survey'
 )
 precondition_router.register(r'preconditions', PreconditionViewSet)
+
+# uncomment when creator CRUD added
+# interviewee_csv_router = routers.NestedSimpleRouter(
+#     creator_router,
+#     r'creators',
+#     lookup='creator'
+# )
+# interviewee_csv_router.register(r'csv-interviewees', CSVIntervieweesViewSet)
 
 # routed
 urlpatterns = [
@@ -90,6 +101,10 @@ urlpatterns += [
     path('api/interviewees/csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
+
+    # uncomment and move to previous urlpatterns when creator CRUD added
+    # path('api/', include(creator_router.urls)),
+    # path('api/', include(interviewee_csv_router.urls)),
 
     # send email
     path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-manually'),
