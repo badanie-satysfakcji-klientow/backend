@@ -6,13 +6,13 @@ from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet,
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
     SurveyResultRawViewSet, QuestionResultRawViewSet
 
-survey_router = routers.SimpleRouter()
+survey_router = routers.SimpleRouter(trailing_slash=False)
 survey_router.register(r'surveys', SurveyViewSet)
 
-interviewee_router = routers.SimpleRouter()
+interviewee_router = routers.SimpleRouter(trailing_slash=False)
 interviewee_router.register(r'interviewees', IntervieweeViewSet)
 
-question_router = routers.SimpleRouter()
+question_router = routers.SimpleRouter(trailing_slash=False)
 question_router.register(r'questions', QuestionViewSet)
 
 answer_router = routers.NestedSimpleRouter(
