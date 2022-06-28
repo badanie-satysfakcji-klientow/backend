@@ -186,9 +186,17 @@ class SubmissionSerializer(serializers.ModelSerializer):
 
     def validate(self, attrs):
         attrs['survey'] = Survey.objects.get(id=self.context['survey_id'])
-        # check if user already submitted
-        if Submission.objects.filter(survey_id=attrs['survey'].id, interviewee=attrs['interviewee'].id).exists():
-            raise serializers.ValidationError('User already submitted')
+        #  anonimowa
+        if attrs['survey'].anonymous:
+            attrs['interviewee'] = None
+            return attrs
+
+        # jawna
+        try:
+            if Submission.objects.filter(survey_id=attrs['survey'].id, interviewee=attrs['interviewee'].id).exists():
+                raise serializers.ValidationError('User already submitted')
+        except KeyError:
+            raise serializers.ValidationError('You must provide valid interviewee for non anonymous survey')
         return attrs
 
 
@@ -221,6 +229,13 @@ class AnswerSerializer(serializers.ModelSerializer):
 
         # check for item type
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
+
+        # check if already answered except for those cases
+        if item_type not in ['gridMultiple', 'closedMultiple']:
+            attrs = self.del_attrs(attrs, ['content_numeric', 'content_character'])
+        else:
+            # TODO: check if answered with the same option
+            pass
 
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
             if not attrs['option']:

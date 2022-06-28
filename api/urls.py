@@ -7,12 +7,12 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
          ItemViewSet.as_view({'post': 'create'}), name='survey-items'),
     path('api/surveys/<uuid:survey_id>/sections',
-         SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),
+         SectionViewSet.as_view({'get': 'list', 'post': 'create'}), name='sections'),  # get z hashem
     path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-by-id'),
-    path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
+    path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),  # z hash
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
-    path('api/surveys/<uuid:survey_id>',
+    path('api/surveys/<uuid:survey_id>',  # get z hash
          SurveyViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update', 'delete': 'destroy'}),
          name='surveys-uuid'),
     path('api/surveys', SurveyViewSet.as_view({'post': 'create'}), name='surveys'),
@@ -35,4 +35,16 @@ urlpatterns = [
     path('api/interviewees/csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
+]
+
+# non anonymous requires login
+
+# tokenized_urls (anonymous survey)
+urlpatterns += [
+    path('api/surveys/<str:survey_hash>/sections',
+         SectionViewSet.as_view({'get': 'anonymous_list'}), name='sections-anonymous'),
+    path('api/surveys/<str:survey_hash>/submit',
+         SubmissionViewSet.as_view({'post': 'anonymous_create'}), name='submit-anonymous'),
+    path('api/surveys/<str:survey_hash>',
+         SurveyViewSet.as_view({'get': 'anonymous_retrieve'}), name='surveys-anonymous'),  # should not be used
 ]

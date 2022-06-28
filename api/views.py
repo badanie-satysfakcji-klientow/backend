@@ -7,7 +7,7 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, IntervieweeSerializer, IntervieweeUploadSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, SurveySent
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
@@ -25,19 +25,44 @@ class SurveyViewSet(ModelViewSet):
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
-                        headers=headers)
+    # TODO: awaiting delete
+    # def create(self, request, *args, **kwargs):
+    #     serializer = self.get_serializer(data=request.data)
+    #     serializer.is_valid(raise_exception=True)
+    #     self.perform_create(serializer)
+    #     headers = self.get_success_headers(serializer.data)
+    #     return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
+    #                     headers=headers)
 
+    # TODO: create other view and serializer for this
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
-    def retrieve_brief(self, request, *args, **kwargs):         # use prefetch_related
+    def retrieve_brief(self, request, *args, **kwargs):
         surveys = Survey.objects.filter(creator_id=kwargs['creator_id'])
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['GET'])
+    def anonymous_retrieve(self, request, *args, **kwargs):
+        survey = Survey.objects.prefetch_related('items')\
+            .get(id=SurveySent.objects.get(id=kwargs['survey_hash']).survey_id)
+        serializer = self.get_serializer(survey)
+        return Response({'status': 'OK', 'survey': serializer.data}, status=status.HTTP_200_OK)
+
+# for get survey,
+# class TokenizedSurveyViewSet(ViewSet):
+#     @action(detail=)
+#     def get_sections(self):
+#         # return Survey.objects.prefetch_related('items').filter(creator_id=self.kwargs['creator_id'])
+#         pass
+#
+#     def get_survey(self):
+#         pass
+#
+#     def post_submit(self):
+#         pass
+#
+#     def post_answer(self):
+#         pass
 
 
 class ItemViewSet(ModelViewSet):
@@ -108,6 +133,15 @@ class SubmissionViewSet(ModelViewSet):
         return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['POST'])
+    def anonymous_create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['survey_id'] = SurveySent.objects.get(id=kwargs['survey_hash']).survey_id
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
+
 
 class AnswerViewSet(ModelViewSet):
     queryset = Answer.objects.all()
@@ -117,7 +151,7 @@ class AnswerViewSet(ModelViewSet):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
         try:
-            serializer.is_valid(raise_exception=True)       # or just if
+            serializer.is_valid(raise_exception=True)  # or just if
         except serializers.ValidationError as e:
             return Response({'status': 'error', 'message': e.args},
                             status=status.HTTP_400_BAD_REQUEST)
@@ -141,6 +175,20 @@ class SectionViewSet(ModelViewSet):
         return Response({'status': 'created section',
                          'section_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
+
+    def anonymous_list(self, request, *args, **kwargs):
+        survey = SurveySent.objects.get(id=kwargs['survey_hash']).survey
+
+        # TODO: filter so override filter_queryset
+        queryset = Section.objects.filter(start_item__in=Item.objects.filter(survey=survey).only('id'))
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class QuestionViewSet(ModelViewSet):
@@ -182,61 +230,66 @@ class SendEmailViewSet(ModelViewSet):
         try:
             selected_interviewees_emails = \
                 [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
-            send_my_mass_mail(survey_id, selected_interviewees_emails)
+            SendEmailViewSet.send_my_mass_mail(survey_id, selected_interviewees_emails)
         except Exception as e:
             return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
         return Response({'survey_id': survey_id, 'status': 'sending process started'}, status=status.HTTP_200_OK)
 
+    # TODO: inna klasa + plik do tych funkcji (send_mass_html_mail, send_mass_text_mail)
+    @staticmethod
+    def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
+        """
+        Given a datatuple of (subject, text_content, html_content, from_email,
+        recipient_list), sends each message to each recipient list. Returns the
+        number of emails sent.
 
-def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
-    """
-    Given a datatuple of (subject, text_content, html_content, from_email,
-    recipient_list), sends each message to each recipient list. Returns the
-    number of emails sent.
+        If from_email is None, the DEFAULT_FROM_EMAIL setting is used.
+        If auth_user and auth_password are set, they're used to log in.
+        If auth_user is None, the EMAIL_HOST_USER setting is used.
+        If auth_password is None, the EMAIL_HOST_PASSWORD setting is used.
 
-    If from_email is None, the DEFAULT_FROM_EMAIL setting is used.
-    If auth_user and auth_password are set, they're used to log in.
-    If auth_user is None, the EMAIL_HOST_USER setting is used.
-    If auth_password is None, the EMAIL_HOST_PASSWORD setting is used.
+        """
+        connection = connection or get_connection(
+            username=user, password=password, fail_silently=fail_silently)
+        messages = []
+        for subject, text, html, from_email, recipient in datatuple:
+            message = EmailMultiAlternatives(subject, text, from_email, recipient)
+            message.attach_alternative(html, 'text/html')
+            messages.append(message)
+        return connection.send_messages(messages)
 
-    """
-    connection = connection or get_connection(
-        username=user, password=password, fail_silently=fail_silently)
-    messages = []
-    for subject, text, html, from_email, recipient in datatuple:
-        message = EmailMultiAlternatives(subject, text, from_email, recipient)
-        message.attach_alternative(html, 'text/html')
-        messages.append(message)
-    return connection.send_messages(messages)
+    @staticmethod
+    def send_my_mass_mail(survey_id, email_list, html=True) -> None:
+        """
+        starts new thread sending mass email (to prevent API freeze) - significantly speeds up the request
+        current link to survey: http://127.0.0.1:4200/survey/<survey_id>
+        """
+        survey = Survey.objects.get(pk=survey_id)
 
+        # gdy ankieta jest anonimowa
+        if survey.anonymous:
+            pass
+        else:
+            partial_link = reverse('surveys-uuid', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
+            survey_link = settings.DOMAIN_NAME + partial_link
 
-def send_my_mass_mail(survey_id, email_list, html=True) -> None:
-    """
-    starts new thread sending mass email (to prevent API freeze) - significantly speeds up the request
-    current link to survey: http://127.0.0.1:4200/survey/<survey_id>
-    """
-    survey = Survey.objects.get(pk=survey_id)
-    survey_title = survey.title
-    partial_link = reverse('surveys-uuid', args=[survey_id]).removeprefix('/api').replace('surveys', 'survey')
-    survey_link = settings.DOMAIN_NAME + partial_link
+        context = {'link': survey_link}
+        html_message = render_to_string('email_template.html', context=context)
+        txt_message = strip_tags(html_message)
 
-    context = {'link': survey_link}
-    html_message = render_to_string('email_template.html', context=context)
-    txt_message = strip_tags(html_message)
-
-    if html:
-        data_tuple_html = ((survey_title, txt_message, html_message, None, email_list),)
-        t = Thread(target=send_mass_html_mail, args=(data_tuple_html,))
-        t.start()
-    else:
-        data_tuple_txt = ((survey_title, txt_message, None, email_list),)
-        t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
-        t.start()
+        if html:
+            data_tuple_html = ((survey.title, txt_message, html_message, None, email_list),)
+            t = Thread(target=SendEmailViewSet.send_mass_html_mail, args=(data_tuple_html,))
+            t.start()
+        else:
+            data_tuple_txt = ((survey.title, txt_message, None, email_list),)
+            t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
+            t.start()
 
 
-class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and send, 3. send without add
+class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
 
@@ -284,7 +337,7 @@ class CSVIntervieweesViewSet(ModelViewSet):     # 1. add to db, 2. add to db and
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
             try:
-                send_my_mass_mail(survey_id, email_list)
+                SendEmailViewSet.send_my_mass_mail(survey_id, email_list)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error during sending email',
                                  'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
