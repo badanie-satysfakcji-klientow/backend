@@ -2,7 +2,16 @@ from collections import Counter
 from django.db.models import Max, Min, F, Count, Avg
 
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee, Creator
+
+
+class RegistrationSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Creator
+        fields = ['email', 'phone', 'password']
+        extra_kwargs = {
+            'password': {'write_only': True}
+        }
 
 
 class SurveySerializer(serializers.ModelSerializer):

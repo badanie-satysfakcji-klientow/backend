@@ -10,8 +10,9 @@ from rest_framework.decorators import action
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
-    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
+    IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
+    RegistrationSerializer
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator
 from django.http import HttpResponse
 import pandas as pd
 import csv
@@ -26,6 +27,11 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
 from api.emails import send_my_mass_mail
+
+
+class RegistrationViewSet(ModelViewSet):
+    serializer_class = RegistrationSerializer
+    queryset = Creator.objects.all()
 
 
 class SurveyViewSet(ModelViewSet):

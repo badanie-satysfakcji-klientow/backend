@@ -2,7 +2,7 @@ from django.urls import path
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
-    SurveyResultRawViewSet, QuestionResultRawViewSet
+    SurveyResultRawViewSet, QuestionResultRawViewSet, RegistrationViewSet
 
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
@@ -56,5 +56,8 @@ urlpatterns = [
          PreconditionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='preconditions-uuid'),
     path('api/preconditions',
          PreconditionViewSet.as_view({'post': 'create'}), name='preconditions'),
+
+    path('api/account/register',
+         RegistrationViewSet.as_view({'post': 'create'}), name='register'),
 
 ]
