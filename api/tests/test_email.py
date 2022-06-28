@@ -37,10 +37,21 @@ class EmailAPITest(APITestCase):
         )
 
         self.interviewee_ids = [self.new_interviewee.id, self.interviewee.id]
+        self.email_list = [f'{lorem.words(1)}@{lorem.words(1)}.{lorem.words(1)}',
+                           f'{lorem.words(1)}@{lorem.words(1)}.{lorem.words(1)}',
+                           f'{lorem.words(1)}@{lorem.words(1)}.{lorem.words(1)}']
 
-    def test_can_send_survey(self):
-        url = reverse('send-by-id', kwargs={'survey_id': self.survey.id})
+    def test_can_send_survey_selected(self):
+        url = f'{reverse("send-manually", kwargs={"survey_id": self.survey.id})}?selected=true'
         response = self.client.post(url, {'interviewees': self.interviewee_ids})
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.json()['survey_id'], str(self.survey.id))
+        self.assertEqual(response.json()['status'], 'sending process started')
+
+    def test_can_send_survey_email_list(self):
+        url = reverse('send-manually', kwargs={'survey_id': self.survey.id})
+        response = self.client.post(url, {'interviewees': self.email_list})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['survey_id'], str(self.survey.id))

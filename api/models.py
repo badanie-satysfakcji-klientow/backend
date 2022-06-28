@@ -69,6 +69,9 @@ class Survey(models.Model):
         items = Item.objects.prefetch_related('questions', 'options').filter(survey=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
 
+    def get_items(self):
+        return Item.objects.filter(survey=self)
+
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
@@ -80,7 +83,12 @@ class Item(models.Model):
         db_table = 'items'
 
     def get_first_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
         return Question.objects.filter(item=self).order_by('order').first().order
+
+    def is_before(self, item: 'Item'):
+        return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
 
 
 class Question(models.Model):
@@ -92,28 +100,33 @@ class Question(models.Model):
     class Meta:
         db_table = 'questions'
 
+    def get_item_type(self):
+        return self.item.type
+
+    def get_answer_content_type(self):
+        content_map = {
+            (1, 2, 3, 10, 11): 'option',
+            (7, 8): 'content_character',
+            (4, 5, 6, 9): 'content_numeric'
+        }
+        for key, val in content_map.items():
+            if self.item.type in key:
+                return val
+        return None
+
 
 class Answer(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     question = models.ForeignKey(Question, models.CASCADE)
     content_numeric = models.IntegerField(blank=True, null=True)
     content_character = models.TextField(blank=True, null=True)
-    option = models.ForeignKey(Option, models.CASCADE, blank=True, null=True)
+    option = models.ForeignKey(Option, on_delete=models.DO_NOTHING, blank=True, null=True)
     submission = models.ForeignKey('Submission', models.CASCADE)
 
     class Meta:
         db_table = 'answers'
 
 
-# class CreatorsInterviewees(models.Model):
-#     creator = models.ForeignKey(Creators, models.DO_NOTHING)
-#     interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
-#
-#     class Meta:
-#         db_table = 'creators_interviewees'
-
-
-# if email does not exist, we should create new interviewee
 class Interviewee(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     email = models.CharField(max_length=320)
@@ -160,7 +173,7 @@ class Precondition(models.Model):
 class Submission(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    survey = models.ForeignKey('Survey', models.DO_NOTHING)
+    survey = models.ForeignKey('Survey', models.CASCADE)
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
     hash = models.ForeignKey('SurveySent', models.DO_NOTHING, blank=True, null=True)
 

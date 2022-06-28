@@ -1,29 +1,8 @@
-from django.db.models import Max
+from collections import Counter
+from django.db.models import Max, Min, F, Count, Avg
+
 from rest_framework import serializers
 from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
-
-
-class SurveyInfoSerializer(serializers.ModelSerializer):
-    sections_count = serializers.SerializerMethodField()
-    items_count = serializers.SerializerMethodField()
-    questions_count = serializers.SerializerMethodField()
-
-    class Meta:
-        model = Survey
-        lookup_field = 'survey_id'
-        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
-                  'sections_count', 'items_count', 'questions_count')
-
-    def get_sections_count(self, instance):
-        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
-        return Section.objects.filter(start_item_id__in=items_list).count()
-
-    def get_items_count(self, instance):
-        return Item.objects.filter(survey_id=instance.id).count()
-
-    def get_questions_count(self, instance):
-        items_list = Item.objects.filter(survey_id=instance.id).values_list('id', flat=True)
-        return Question.objects.filter(item_id__in=items_list).count()
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -60,10 +39,51 @@ class SurveySerializer(serializers.ModelSerializer):
             return items_serializer.data
 
 
+class SurveyInfoSerializer(SurveySerializer):
+    sections = None
+    items = None
+
+    class Meta(SurveySerializer.Meta):
+        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused')
+
+
 class QuestionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Question
         fields = ('id', 'order', 'value')
+
+    def validate(self, attrs):
+        order = attrs.get('order', self.instance.order)
+
+        if order is not None:
+            if order < 1:
+                raise serializers.ValidationError('Order must be greater than 0')
+            if self.partial and order > Question.objects.filter(item_id=self.instance.item_id)\
+                    .aggregate(Max('order'))['order__max']:
+                raise serializers.ValidationError('Order must be less than or equal to the highest order')
+            if self.partial and order < Question.objects.filter(item_id=self.instance.item_id)\
+                    .aggregate(Min('order'))['order__min']:
+                raise serializers.ValidationError('Order must be greater than or equal to the lowest order')
+        return attrs
+
+    def update(self, instance, validated_data):
+        # update the order of the question if it is changed
+        prev_order = instance.order
+        instance.order = validated_data.get('order', instance.order)
+        instance.value = validated_data.get('value', instance.value)
+
+        # update other questions within the same item
+        # move backwards
+        if prev_order > instance.order:
+            Question.objects.filter(item_id=instance.item_id, order__gte=instance.order, order__lt=prev_order)\
+                .update(order=F('order') + 1)
+        # move forwards
+        elif prev_order < instance.order:
+            Question.objects.filter(item_id=instance.item_id, order__gt=prev_order, order__lte=instance.order)\
+                .update(order=F('order') - 1)
+
+        instance.save()
+        return instance
 
 
 class OptionSerializer(serializers.ModelSerializer):
@@ -107,6 +127,14 @@ class ItemSerializer(serializers.ModelSerializer):
 
     inv_type_map = {v: k for k, v in type_map.items()}
 
+    content_map = {
+        ('list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple'): 'option',
+        ('openShort', 'openLong'): 'content_character',
+        ('scale5', 'scale10', 'scaleNPS', 'openNumeric'): 'content_numeric'
+    }
+
+    inv_content_map = {v: k for k, v in content_map.items()}
+
     class Meta:
         model = Item
         fields = ['id', 'required', 'type', 'questions', 'options']
@@ -115,14 +143,24 @@ class ItemSerializer(serializers.ModelSerializer):
         return [key for key, value in self.type_map.items() if value == self.context['type']][0]
 
     def create(self, validated_data):
-        questions = validated_data.pop('questions')
+        try:
+            questions = validated_data.pop('questions')
+        except KeyError:
+            raise serializers.ValidationError('No questions given for item')
+
         # case when no option is needed (e.g. numeric)
         try:
             options = validated_data.pop('options')
         except KeyError:
             options = None
+
+        # case when wrong str type were given
+        try:
+            validated_data['type'] = self.inv_type_map[self.context['type']]
+        except KeyError:
+            raise serializers.ValidationError('Invalid type given for item')
+
         validated_data['survey_id'] = self.context['survey_id']
-        validated_data['type'] = self.inv_type_map[self.context['type']]
         item = Item.objects.create(**validated_data)
         if questions:
             # get max order index from questions in survey
@@ -130,7 +168,7 @@ class ItemSerializer(serializers.ModelSerializer):
             max_order = Question.objects.filter(item_id__in=survey_items) \
                 .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
-            questions = Question.objects\
+            questions = Question.objects \
                 .bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
 
             for question in questions:
@@ -165,6 +203,9 @@ class ItemGetSerializer(serializers.ModelSerializer):
 
     def get_questions(self, instance):
         questions = Question.objects.filter(item_id=instance.id).order_by('order')
+        if not questions:
+            raise serializers.ValidationError('No questions found for item')
+
         return QuestionSerializer(questions, many=True).data
 
     def get_options(self, instance):
@@ -227,7 +268,11 @@ class AnswerSerializer(serializers.ModelSerializer):
         if Survey.objects.get(id=survey_id).paused:
             raise serializers.ValidationError('Survey is paused')
 
+        if (question := Question.objects.get(id=attrs['question'].id)) is not None:
+            attrs['question'] = question
+
         # check for item type
+
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
         # check if already answered except for those cases
@@ -250,12 +295,84 @@ class AnswerSerializer(serializers.ModelSerializer):
             if not attrs['content_numeric']:
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
+
         return attrs
 
     def create(self, validated_data):
         validated_data['question_id'] = self.context['question_id']
         answer = Answer.objects.create(**validated_data)
         return answer
+
+
+class SurveyResultInfoSerializer(serializers.ModelSerializer):
+    answers_count = serializers.SerializerMethodField()
+    submissions_count = serializers.SerializerMethodField()
+
+    # TODO: Think of some other needed fields
+    class Meta:
+        model = Survey
+        fields = ['answers_count', 'submissions_count']
+
+    def get_submissions_count(self, instance):
+        return Submission.objects.filter(survey_id=instance.id).count()
+
+    def get_answers_count(self, instance):
+        submissions_query = Submission.objects.filter(survey_id=instance.id).values_list('id', flat=True)
+        return Answer.objects.filter(submission_id__in=submissions_query).count()
+
+
+class SurveyResultSerializer(serializers.ModelSerializer):
+    # fields for option
+    # options_count = serializers.SerializerMethodField()
+    # fields for content_character
+    common_answers = serializers.SerializerMethodField()
+    # fields for content_numeric
+    mean = serializers.SerializerMethodField()
+    answers_count = serializers.SerializerMethodField()
+    most_common_number = 10
+
+    class Meta:
+        model = Question
+        fields = ['id', 'order', 'value', 'mean', 'answers_count', 'common_answers']
+
+    def get_common_words(self, instance):
+        query = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        return Counter(query).most_common(self.most_common_number)
+
+    def get_mean(self, instance):
+        count_query = Answer.objects.filter(question_id=instance.id).aggregate(Avg('content_numeric'))
+        return count_query['content_numeric__avg']
+
+    def get_common_answers(self, instance):
+        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        sentences = [' '.join(content_character.lower().strip().split()) for content_character in sentences]
+        return dict(Counter(sentences).most_common(self.most_common_number))
+
+    def get_answers_count(self, instance):
+        q_type = ItemSerializer.type_map[instance.item.type]
+        if q_type in ItemSerializer.inv_content_map['option']:
+            return Answer.objects.select_related('answer_options').filter(question_id=instance.id) \
+                .values('option_id') \
+                .order_by('option_id') \
+                .annotate(count=Count('option_id'))
+        elif q_type in ItemSerializer.inv_content_map['content_numeric']:
+            return Answer.objects.filter(question_id=instance.id) \
+                .values('content_numeric') \
+                .order_by('content_numeric') \
+                .annotate(count=Count('content_numeric'))
+        return None
+
+
+class SurveyResultFullSerializer(SurveyResultSerializer):
+    open_answers_content_list = serializers.SerializerMethodField()
+    most_common_number = 1
+
+    class Meta(SurveyResultSerializer.Meta):
+        fields = SurveyResultSerializer.Meta.fields + ['open_answers_content_list']
+
+    def get_open_answers_content_list(self, instance):
+        sentences = Answer.objects.filter(question_id=instance.id).values_list('content_character', flat=True)
+        return {' '.join(content_character.lower().strip().split()) for content_character in sentences}
 
 
 class SectionSerializer(serializers.ModelSerializer):
@@ -271,13 +388,22 @@ class SectionSerializer(serializers.ModelSerializer):
         if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
             raise serializers.ValidationError('End item not found')
 
-        # check if start_item is before end_item
-        if not (start_item_order := Question.objects.get(item_id=attrs['start_item'].id).order) <= \
-               (end_item_order := Question.objects.get(item_id=attrs['end_item'].id).order):
-            raise serializers.ValidationError('Start item must be before or equal to end item')
+        try:
+            # check if start_item is before end_item
+            if not (start_item_order := Question.objects
+                    .filter(item_id=attrs['start_item'].id)
+                    .order_by('order')
+                    .first().order) <= \
+                   (end_item_order := Question.objects
+                    .filter(item_id=attrs['end_item'].id)
+                    .order_by('order')
+                    .first().order):
+                raise serializers.ValidationError('Start item must be before or equal to end item')
+        except AttributeError:
+            raise serializers.ValidationError('Start item or end item not found')
 
         # check if sections overlap
-        sections = Section.objects.prefetch_related('items')\
+        sections = Section.objects.select_related('start_item', 'end_item') \
             .filter(start_item_id__in=Item.objects.filter(survey_id=survey_id).only('id'))
 
         for section in sections:
@@ -297,7 +423,49 @@ class SectionSerializer(serializers.ModelSerializer):
 class PreconditionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Precondition
-        fields = ('expected_option', 'next_item')
+        fields = ('id', 'item', 'expected_option', 'next_item')
+        read_only_fields = ('id', 'item')
+
+    def create(self, validated_data):
+        validated_data['item_id'] = validated_data['expected_option'].item_id
+        precondition = Precondition.objects.create(**validated_data)
+        return precondition
+
+    def validate(self, attrs):
+        if self.partial:
+            return self.validate_partial(attrs)
+
+        # ensures that both option and item exist
+        if not Option.objects.filter(id=attrs['expected_option'].id).exists():
+            raise serializers.ValidationError('Expected option not found')
+
+        if not Item.objects.filter(id=attrs['next_item'].id).exists():
+            raise serializers.ValidationError('Next item not found')
+
+        item = Item.objects.get(id=Option.objects.get(id=attrs['expected_option'].id).item_id)
+
+        # check if item is before next_item
+        if not item.is_before(attrs['next_item']):
+            raise serializers.ValidationError('Item must be before next item')
+
+        # check if that precondition exists
+        if Precondition.objects.filter(item=item, next_item=attrs['next_item'].id).exists():
+            raise serializers.ValidationError('Precondition already exists')
+
+        return attrs
+
+    def validate_partial(self, attrs):
+        if 'next_item' in attrs:
+            if not Item.objects.filter(id=attrs['next_item'].id).exists():
+                raise serializers.ValidationError('Next item not found')
+
+            if not self.instance.item.is_before(self.instance.next_item):
+                raise serializers.ValidationError('Item must be before next item')
+
+        if 'expected_option' in attrs:
+            if not Option.objects.get(id=attrs['expected_option'].id).item_id == self.instance.item_id:
+                raise serializers.ValidationError('Expected option not found')
+        return attrs
 
 
 class IntervieweeSerializer(serializers.ModelSerializer):
