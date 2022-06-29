@@ -57,7 +57,7 @@ urlpatterns = [
     path('api/interviewees',
          IntervieweeViewSet.as_view({'get': 'list', 'post': 'create'}),
          name='interviewee'),
-    path('api/interviewees/csv',
+    path('api/creators/<uuid:creator_id>/interviewees-csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
 

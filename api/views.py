@@ -1,6 +1,3 @@
-import datetime
-from collections import Counter
-
 from django.db.models import F
 from rest_framework import status, serializers
 from rest_framework.response import Response
@@ -15,20 +12,9 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator, \
     SurveySent
 
-from django.http import HttpResponse
 import pandas as pd
-import csv
-from openpyxl import Workbook
-from openpyxl.chart import (
-    PieChart,
-    ProjectedPieChart,
-    Reference,
-    BarChart
-)
-from openpyxl.chart.label import DataLabelList
-from openpyxl.styles import Font, Border, Side
-from openpyxl.utils import get_column_letter
-from api.emails import send_my_mass_mail
+from api.utils import send_my_mass_mail, xlsx_question_charts_file, xlsx_survey_results, csv_interviewees_file
+# from api.utils import xlsx_survey_results2
 
 
 class SurveyViewSet(ModelViewSet):
@@ -316,6 +302,7 @@ class SendEmailViewSet(ModelViewSet):
 class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
+    lookup_url_kwarg = 'creator_id'
 
     @staticmethod
     def get_email_list(already_exists, new_interviewee_list):
@@ -385,24 +372,9 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
     @action(detail=False, methods=['GET'])
     def download_csv(self, request, *args, **kwargs):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="interviewees{datetime.datetime.now()}.csv"'
-        response.write(u'\ufeff'.encode('utf8'))
-
-        writer = csv.writer(response)
-
-        header = ';'.join(['email', 'first_name', 'last_name'])
-        writer.writerow([header])
-
-        for interviewee in self.queryset:
-            row = ';'.join([
-                interviewee.email,
-                interviewee.first_name,
-                interviewee.last_name,
-            ])
-            writer.writerow([row])
-
-        return response
+        return csv_interviewees_file(queryset=Interviewee.objects.all())
+        # TODO queryset=Interviewee.objects.filter(creator=Creator.objects.get(id=kwargs['creator_id']))
+        # Interviewee model doesn't contain Creator
 
 
 # for Preconditions
@@ -441,85 +413,13 @@ class QuestionResultRawViewSet(ModelViewSet):
     def retrieve(self, request, *args, **kwargs):
         question = Question.objects.get(id=self.kwargs['question_id'])
         answer_type = question.get_answer_content_type()
+        question_val = question.value[:15].replace('?', '').replace('\\', '').replace('/', '')
+        queryset = self.get_queryset()
 
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        )
-        response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
-            date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question.value[:15]
-        )
-
-        if answer_type == 'option':
-            answers = self.get_queryset().prefetch_related('option').values_list('option__content', flat=True)
-        elif answer_type == 'content_numeric':
-            answers = self.get_queryset().values_list('content_numeric', flat=True)
-        elif answer_type == 'content_character':
-            answers = self.get_queryset().values_list('content_character', flat=True)
-            answers = [' '.join(content_character.lower().strip().split()) for content_character in answers
-                       if content_character is not None]
-        else:
-            return Response({'status': 'error', 'message': 'question without item_type'},
-                            status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-
-        counted = Counter(answers)
-        statement = len(counted) > 5
-        counted = counted.most_common(5) if statement else counted.most_common()
-        max_row = len(counted)
-
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = f'"{question.value[:15]}" pie'
-
-        # normal pie
-        for row in counted:
-            worksheet.append(row)
-        pie = PieChart()
-        labels = Reference(worksheet, min_col=1, min_row=1, max_row=max_row)
-        data = Reference(worksheet, min_col=2, min_row=1, max_row=max_row)
-        pie.add_data(data)
-        pie.set_categories(labels)
-        pie.title = question.value
-        pie.dataLabels = DataLabelList()
-        pie.dataLabels.showVal = True
-        worksheet.add_chart(pie, "D1")
-
-        # projected pie
-        ws = workbook.create_sheet(title=f'"{question.value[:15]}" projection')
-        for row in counted:
-            ws.append(row)
-        projected_pie = ProjectedPieChart()
-        projected_pie.type = "bar"
-        projected_pie.splitType = "pos"  # split by value
-        labels = Reference(ws, min_col=1, min_row=1, max_row=max_row)
-        data = Reference(ws, min_col=2, min_row=1, max_row=max_row)
-        projected_pie.add_data(data)
-        projected_pie.dataLabels = DataLabelList()
-        projected_pie.dataLabels.showVal = True
-        projected_pie.set_categories(labels)
-        projected_pie.title = question.value
-        ws.add_chart(projected_pie, "D2")
-
-        # bar
-        ws2 = workbook.create_sheet(title=f'"{question.value[:15]}" bar')
-        for row in counted:
-            ws2.append(row)
-        bar = BarChart()
-        bar.type = "col"
-        # bar.style = 10
-        bar.title = question.value
-        bar.y_axis.title = "Ilość wystąpień"
-        bar.x_axis.title = "Udzielone odpowiedzi"
-        labels = Reference(ws2, min_col=1, min_row=1, max_row=max_row)
-        data = Reference(ws2, min_col=2, min_row=1, max_row=max_row)
-        bar.dataLabels = DataLabelList()
-        bar.dataLabels.showVal = True
-        bar.add_data(data)
-        bar.set_categories(labels)
-        bar.shape = 4
-        ws2.add_chart(bar, "D3")
-
-        workbook.save(response)
-        return response
+        q_err = 'Question without item type or with invalid type or question doesnt exist'
+        if not answer_type or answer_type not in ['option', 'content_numeric', 'content_character'] or not question_val:
+            return Response({'status': 'error', 'message': q_err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        return xlsx_question_charts_file(queryset, question_val, answer_type)
 
 
 class SurveyResultRawViewSet(ModelViewSet):
@@ -530,44 +430,16 @@ class SurveyResultRawViewSet(ModelViewSet):
         question_query = Question.objects.filter(item_id__in=items_query)
         return question_query
 
+    def get_queryset_combined(self):
+        question_query = self.get_queryset()
+        combined_queryset = Answer.objects.filter(question__in=question_query).prefetch_related('question')
+        return combined_queryset
+
     def retrieve(self, request, *args, **kwargs):
         survey = Survey.objects.get(id=self.kwargs['survey_id'])
-
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        )
-        response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
-            date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey.title[:10]
-        )
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = f'"{survey.title[:15]}" results'
-
-        column_titles = [question.value for question in self.get_queryset()]
-        row_num = 1
-        for col_num, column_title in enumerate(column_titles, 1):
-            cell = worksheet.cell(row=row_num, column=col_num)
-            cell.value = column_title
-            cell.font = Font(name='Calibri', bold=True)
-            cell.border = Border(bottom=Side(border_style='medium', color='FF000000'),)
-            column_letter = get_column_letter(col_num)
-            column_dimensions = worksheet.column_dimensions[column_letter]
-            column_dimensions.width = 30
-
-        row_num = 2
-        col_num = 1
-        for question in self.get_queryset():
-            answer_queryset = Answer.objects.filter(question_id=question.id)
-            col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
-
-            for cell_value in col_data:
-                cell = worksheet.cell(row=row_num, column=col_num)
-                cell.value = cell_value
-                row_num += 1
-
-            row_num = 2
-            col_num += 1
-
-        worksheet.freeze_panes = worksheet['A2']
-        workbook.save(response)
-        return response
+        survey_title = survey.title[:15].replace('?', '').replace('\\', '').replace('/', '')
+        return xlsx_survey_results(self.get_queryset(), survey_title)
+        # zapytać InsERT które poejście lepsze (2 zapytania do bazy i dict czy zapytanie o Answers co każde Question
+        # wbrew pozorom pierwsze może zająć dużo pamięci przy ogromnej ilości danych, drugie z kolei spam do bazy
+        # ewentualnie dać parametr do wywołania funkcji, którą chcemy
+        # return xlsx_survey_results2(self.get_queryset(), self.get_queryset_combined(), survey_title)
