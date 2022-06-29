@@ -2,7 +2,8 @@ from collections import Counter
 from django.db.models import Max, Min, F, Count, Avg
 
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee, Creator
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee, Creator, \
+    SurveySent
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -42,9 +43,18 @@ class SurveySerializer(serializers.ModelSerializer):
 class SurveyInfoSerializer(SurveySerializer):
     sections = None
     items = None
+    response_rate = serializers.SerializerMethodField(read_only=True)
 
     class Meta(SurveySerializer.Meta):
-        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused')
+        fields = ('id', 'title', 'description', 'created_at', 'anonymous', 'starts_at', 'expires_at', 'paused',
+                  'response_rate')
+
+    # TODO: should be optimized - some prefetch related problems
+    @staticmethod
+    def get_response_rate(instance):
+        sent = SurveySent.objects.filter(survey=instance).count()
+        submitted = Submission.objects.filter(survey=instance).count()
+        return {'sent': sent, 'submitted': submitted, 'response_rate': round(submitted / sent * 100, 2) if sent > 0 else 0}
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -58,10 +68,10 @@ class QuestionSerializer(serializers.ModelSerializer):
         if order is not None:
             if order < 1:
                 raise serializers.ValidationError('Order must be greater than 0')
-            if self.partial and order > Question.objects.filter(item_id=self.instance.item_id)\
+            if self.partial and order > Question.objects.filter(item_id=self.instance.item_id) \
                     .aggregate(Max('order'))['order__max']:
                 raise serializers.ValidationError('Order must be less than or equal to the highest order')
-            if self.partial and order < Question.objects.filter(item_id=self.instance.item_id)\
+            if self.partial and order < Question.objects.filter(item_id=self.instance.item_id) \
                     .aggregate(Min('order'))['order__min']:
                 raise serializers.ValidationError('Order must be greater than or equal to the lowest order')
         return attrs
@@ -75,11 +85,11 @@ class QuestionSerializer(serializers.ModelSerializer):
         # update other questions within the same item
         # move backwards
         if prev_order > instance.order:
-            Question.objects.filter(item_id=instance.item_id, order__gte=instance.order, order__lt=prev_order)\
+            Question.objects.filter(item_id=instance.item_id, order__gte=instance.order, order__lt=prev_order) \
                 .update(order=F('order') + 1)
         # move forwards
         elif prev_order < instance.order:
-            Question.objects.filter(item_id=instance.item_id, order__gt=prev_order, order__lte=instance.order)\
+            Question.objects.filter(item_id=instance.item_id, order__gt=prev_order, order__lte=instance.order) \
                 .update(order=F('order') - 1)
 
         instance.save()
@@ -172,7 +182,7 @@ class ItemSerializer(serializers.ModelSerializer):
             # get max order index from questions in survey
             survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
             max_order = Question.objects.filter(item_id__in=survey_items) \
-                .aggregate(max_order=Max('order'))['max_order'] or 0
+                            .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
             questions = Question.objects \
                 .bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
@@ -402,9 +412,9 @@ class SectionSerializer(serializers.ModelSerializer):
                     .order_by('order')
                     .first().order) <= \
                    (end_item_order := Question.objects
-                    .filter(item_id=attrs['end_item'].id)
-                    .order_by('order')
-                    .first().order):
+                           .filter(item_id=attrs['end_item'].id)
+                           .order_by('order')
+                           .first().order):
                 raise serializers.ValidationError('Start item must be before or equal to end item')
         except AttributeError:
             raise serializers.ValidationError('Start item or end item not found')
@@ -425,6 +435,18 @@ class SectionSerializer(serializers.ModelSerializer):
     # TODO: section update
     # def update(self, instance, validated_data):
     #     pass
+
+
+class SectionGetSerializer(SectionSerializer):
+    items = serializers.SerializerMethodField()
+
+    class Meta(SectionSerializer.Meta):
+        model = Section
+        fields = ['id', 'title', 'description', 'items']
+
+    @staticmethod
+    def get_items(instance):
+        return instance.get_items_in_order()
 
 
 class PreconditionSerializer(serializers.ModelSerializer):

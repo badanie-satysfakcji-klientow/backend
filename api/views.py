@@ -13,7 +13,7 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
-    CreatorSerializer
+    CreatorSerializer, SectionGetSerializer
 
 from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee, Precondition, SurveySent, \
     Section, Creator
@@ -41,7 +41,8 @@ class SurveyViewSet(ModelViewSet):
 
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
     def list_brief(self, request, *args, **kwargs):  # use prefetch_related
-        surveys = Survey.objects.filter(creator_id=kwargs['creator_id']).prefetch_related('submissions')
+        surveys = Survey.objects.filter(creator_id=kwargs['creator_id'])\
+            .prefetch_related('submissions', 'sent').order_by('-created_at')
         # using different serializer for that action
         serializer = SurveyInfoSerializer(self.paginate_queryset(surveys), many=True)
         return self.get_paginated_response(serializer.data)

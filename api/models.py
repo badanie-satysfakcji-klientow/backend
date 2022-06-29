@@ -62,7 +62,7 @@ class Survey(models.Model):
 
     def get_sections_in_order(self):
         items = Item.objects.prefetch_related('questions', 'options').filter(survey=self).values_list('id')
-        sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items).order_by()
+        sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items)
         return sorted(sections, key=lambda x: x.get_start_question_order())
 
     def get_items_in_order(self):
