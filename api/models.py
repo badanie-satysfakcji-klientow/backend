@@ -124,8 +124,11 @@ class Answer(models.Model):
     class Meta:
         db_table = 'answers'
 
+    def get_option_content(self):
+        return self.option.content if self.option.content else None
+
     def get_content_type_value(self, content_type: str):
-        return self.option.content if content_type == 'option' else getattr(self, content_type)
+        return self.get_option_content() if content_type == 'option' else getattr(self, content_type)
 
 
 class Interviewee(models.Model):

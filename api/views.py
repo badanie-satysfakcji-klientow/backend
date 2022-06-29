@@ -1,4 +1,3 @@
-import datetime
 from django.db.models import F
 from rest_framework import status, serializers
 from rest_framework.response import Response
@@ -10,10 +9,8 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition
-from django.http import HttpResponse
 import pandas as pd
-import csv
-from api.utils import send_my_mass_mail, xlsx_question_charts_file, xlsx_survey_results
+from api.utils import send_my_mass_mail, xlsx_question_charts_file, xlsx_survey_results, csv_interviewees_file
 # from api.utils import xlsx_survey_results2
 
 
@@ -279,6 +276,7 @@ class SendEmailViewSet(ModelViewSet):
 class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
+    lookup_url_kwarg = 'creator_id'
 
     @staticmethod
     def get_email_list(already_exists, new_interviewee_list):
@@ -348,24 +346,9 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
     @action(detail=False, methods=['GET'])
     def download_csv(self, request, *args, **kwargs):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = f'attachment; filename="interviewees{datetime.datetime.now()}.csv"'
-        response.write(u'\ufeff'.encode('utf8'))
-
-        writer = csv.writer(response)
-
-        header = ';'.join(['email', 'first_name', 'last_name'])
-        writer.writerow([header])
-
-        for interviewee in self.queryset:
-            row = ';'.join([
-                interviewee.email,
-                interviewee.first_name,
-                interviewee.last_name,
-            ])
-            writer.writerow([row])
-
-        return response
+        return csv_interviewees_file(queryset=Interviewee.objects.all())
+        # TODO queryset=Interviewee.objects.filter(creator=Creator.objects.get(id=kwargs['creator_id']))
+        # Interviewee model doesn't contain Creator
 
 
 # for Preconditions

@@ -21,6 +21,7 @@ from openpyxl.styles import Font, Border, Side
 from collections import Counter
 
 from api.models import Answer
+import csv
 
 
 def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
@@ -69,6 +70,27 @@ def send_my_mass_mail(survey_id, survey_title, email_list, html=True) -> None:
         data_tuple_txt = ((survey_title, txt_message, None, email_list),)
         t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
         t.start()
+
+
+def csv_interviewees_file(queryset):
+    response = HttpResponse(content_type='text/csv')
+    response['Content-Disposition'] = f'attachment; filename="interviewees{datetime.datetime.now()}.csv"'
+    response.write(u'\ufeff'.encode('utf8'))
+
+    writer = csv.writer(response)
+
+    header = ';'.join(['email', 'first_name', 'last_name'])
+    writer.writerow([header])
+
+    for interviewee in queryset:
+        row = ';'.join([
+            interviewee.email,
+            interviewee.first_name,
+            interviewee.last_name,
+        ])
+        writer.writerow([row])
+
+    return response
 
 
 def xlsx_question_charts_file(queryset, question_val, answer_type) -> HttpResponse:
