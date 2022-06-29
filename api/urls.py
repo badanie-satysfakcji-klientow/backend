@@ -4,7 +4,10 @@ from rest_framework_nested import routers
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
-    SurveyResultRawViewSet, QuestionResultRawViewSet
+    SurveyResultRawViewSet, QuestionResultRawViewSet, CreatorViewSet
+
+survey_router = routers.SimpleRouter(trailing_slash=False)
+survey_router.register(r'surveys', SurveyViewSet)
 
 survey_router = routers.SimpleRouter(trailing_slash=False)
 survey_router.register(r'surveys', SurveyViewSet)
@@ -15,8 +18,8 @@ interviewee_router.register(r'interviewees', IntervieweeViewSet)
 question_router = routers.SimpleRouter(trailing_slash=False)
 question_router.register(r'questions', QuestionViewSet)
 
-# creator_router = routers.SimpleRouter(trailing_slash=False)
-# creator_router.register(r'creators', CreatorViewSet) uncomment when creator CRUD added
+creator_router = routers.SimpleRouter(trailing_slash=False)
+creator_router.register(r'creators', CreatorViewSet)
 
 answer_router = routers.NestedSimpleRouter(
     question_router,
@@ -40,12 +43,13 @@ precondition_router = routers.NestedSimpleRouter(
 precondition_router.register(r'preconditions', PreconditionViewSet)
 
 # uncomment when creator CRUD added
-# interviewee_csv_router = routers.NestedSimpleRouter(
-#     creator_router,
-#     r'creators',
-#     lookup='creator'
-# )
-# interviewee_csv_router.register(r'csv-interviewees', CSVIntervieweesViewSet)
+interviewee_csv_router = routers.NestedSimpleRouter(
+    creator_router,
+    r'creators',
+    lookup='creator'
+)
+interviewee_csv_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
+
 
 # routed
 urlpatterns = [
@@ -61,6 +65,10 @@ urlpatterns = [
     path('api/', include(precondition_router.urls)),
     # interviewees
     path('api/', include(interviewee_router.urls)),
+    # creators
+    path('api/', include(creator_router.urls)),
+    # interviewees csv
+    path('api/', include(interviewee_csv_router.urls)),  # TODO: <- failing some tests - resolve
 ]
 
 # non routed
@@ -92,19 +100,21 @@ urlpatterns += [
 
     # surveys by creator
     path('api/creators/<uuid:creator_id>/surveys',
-         SurveyViewSet.as_view({'get': 'retrieve_brief'}),
-         name='surveys-brief-info'),
+         SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info'),
 
     # interviewees
     # TODO: download i upload powinny być na
     #   api/creators/<uuid:creator_id>/interviewees (nie musi być /csv na końcu)
-    path('api/interviewees/csv',
-         CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
-         name='interviewee-csv'),
+    # path('api/interviewees/csv',
+    #      CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
+    #      name='interviewee-csv'),
 
     # uncomment and move to previous urlpatterns when creator CRUD added
     # path('api/', include(creator_router.urls)),
     # path('api/', include(interviewee_csv_router.urls)),
+
+
+
 
     # send email
     path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-manually'),

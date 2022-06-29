@@ -2,7 +2,7 @@ from collections import Counter
 from django.db.models import Max, Min, F, Count, Avg
 
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee, Creator
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -459,6 +459,12 @@ class PreconditionSerializer(serializers.ModelSerializer):
             if not Option.objects.get(id=attrs['expected_option'].id).item_id == self.instance.item_id:
                 raise serializers.ValidationError('Expected option not found')
         return attrs
+
+
+class CreatorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Creator
+        fields = ['id', 'email', 'password', 'phone']
 
 
 class IntervieweeSerializer(serializers.ModelSerializer):
