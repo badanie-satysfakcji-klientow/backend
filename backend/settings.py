@@ -51,8 +51,13 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
     'DEFAULT_AUTHENTICATION_CLASSES': [
         'rest_framework.authentication.TokenAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
     ]
 }
+
+AUTH_USER_MODEL = 'api.Creator'
 
 # CORS - all domains
 CORS_ORIGIN_ALLOW_ALL = False

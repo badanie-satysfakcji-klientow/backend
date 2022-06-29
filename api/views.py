@@ -27,11 +27,22 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
 from api.emails import send_my_mass_mail
+from rest_framework.authtoken.models import Token
+from rest_framework import permissions
 
 
 class RegistrationViewSet(ModelViewSet):
     serializer_class = RegistrationSerializer
     queryset = Creator.objects.all()
+    permission_classes = [permissions.AllowAny]
+
+    def create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        token = Token.objects.get_or_create(user=serializer.save())
+        serializer.data['token'] = token
+        headers = self.get_success_headers(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED, headers=headers)
 
 
 class SurveyViewSet(ModelViewSet):

@@ -3,7 +3,7 @@ from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet,
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
     SurveyResultRawViewSet, QuestionResultRawViewSet, RegistrationViewSet
-
+from rest_framework.authtoken import views
 urlpatterns = [
     path('api/surveys/<uuid:survey_id>/items',
          ItemViewSet.as_view({'post': 'create'}), name='survey-items'),
