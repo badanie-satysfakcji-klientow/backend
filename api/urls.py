@@ -60,7 +60,7 @@ urlpatterns = [
     path('api/interviewees',
          IntervieweeViewSet.as_view({'get': 'list', 'post': 'create'}),
          name='interviewee'),
-    path('api/interviewees/csv',
+    path('api/creators/<uuid:creator_id>/interviewees-csv',
          CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
          name='interviewee-csv'),
 
@@ -69,4 +69,16 @@ urlpatterns = [
     path('api/preconditions',
          PreconditionViewSet.as_view({'post': 'create'}), name='preconditions'),
 
+]
+
+# non anonymous requires login
+
+# tokenized_urls (anonymous survey)
+urlpatterns += [
+    path('api/surveys/<str:survey_hash>/sections',
+         SectionViewSet.as_view({'get': 'anonymous_list'}), name='sections-anonymous'),
+    path('api/surveys/<str:survey_hash>/submit',
+         SubmissionViewSet.as_view({'post': 'anonymous_create'}), name='submit-anonymous'),
+    path('api/surveys/<str:survey_hash>',
+         SurveyViewSet.as_view({'get': 'anonymous_retrieve'}), name='surveys-anonymous'),  # should not be used
 ]

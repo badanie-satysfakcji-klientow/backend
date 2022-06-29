@@ -1,6 +1,7 @@
 from django.db import models
 from django.db.models import QuerySet, F
 import uuid
+import hashlib  # for hashing sent emails
 
 
 class Option(models.Model):
@@ -55,6 +56,7 @@ class Section(models.Model):
 
 class Creator(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    interviewees = models.ManyToManyField('Interviewee')
     email = models.EmailField(max_length=320, unique=True)
     password = models.CharField(max_length=255)
     phone = models.CharField(max_length=18, blank=True, null=True)
@@ -80,7 +82,7 @@ class Survey(models.Model):
         db_table = 'surveys'
 
     def get_sections_in_order(self):
-        items = Item.objects.prefetch_related('questions',  'options').filter(survey=self).values_list('id')
+        items = Item.objects.prefetch_related('questions', 'options').filter(survey=self).values_list('id')
         sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items).order_by()
         return sorted(sections, key=lambda x: x.get_start_question_order())
 
@@ -95,6 +97,7 @@ class Survey(models.Model):
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE)
+
     # TODO: that should be added
     #   section = models.ForeignKey(Section, related_name='section-items', on_delete=models.CASCADE)
     type = models.SmallIntegerField(blank=True, null=True)
@@ -138,7 +141,7 @@ class Question(models.Model):
         for key, val in content_map.items():
             if self.item.type in key:
                 return val
-        return None
+        raise ValueError('Item type out of range')
 
 
 class Answer(models.Model):
@@ -152,6 +155,12 @@ class Answer(models.Model):
     class Meta:
         db_table = 'answers'
 
+    def get_option_content(self):
+        return self.option.content if self.option else None
+
+    def get_content_type_value(self, content_type: str):
+        return self.get_option_content() if content_type == 'option' else getattr(self, content_type)
+
 
 class Interviewee(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
@@ -163,10 +172,24 @@ class Interviewee(models.Model):
         db_table = 'interviewees'
 
 
+# czy interviewees sa tworzeni na email sent - można zaznaczyć
 class SurveySent(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
-    interviewee_id = models.UUIDField()
+    # TODO: obviously change that
+    email = models.CharField(max_length=320, editable=False, blank=True, null=True)
+    id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
+
+    def save(self, *args, **kwargs):
+        self.id = hashlib.sha256((self.survey_id.hex + self.email).encode('utf-8')).hexdigest()
+
+        if self.survey.anonymous:
+            self.email = None
+        else:
+            # if not anonymous, automatically add interviewee to database if it does not exist
+            if not Interviewee.objects.filter(email=self.email).exists():
+                Interviewee.objects.create(email=self.email)
+
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'survey_sent'
@@ -187,6 +210,7 @@ class Submission(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
     survey = models.ForeignKey('Survey', models.CASCADE)
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
+    hash = models.ForeignKey('SurveySent', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         db_table = 'submissions'
