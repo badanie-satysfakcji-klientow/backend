@@ -2,7 +2,7 @@ from collections import Counter
 from django.db.models import Max, Min, F, Count, Avg
 
 from rest_framework import serializers
-from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee
+from .models import Answer, Item, Option, Precondition, Question, Section, Submission, Survey, Interviewee, Creator
 
 
 class SurveySerializer(serializers.ModelSerializer):
@@ -90,6 +90,12 @@ class OptionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Option
         fields = ['id', 'content']
+
+
+class CreatorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Creator
+        fields = ['id', 'email', 'password', 'phone']
 
 
 class AnswerQuestionCountSerializer(serializers.ModelSerializer):
