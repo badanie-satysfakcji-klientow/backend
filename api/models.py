@@ -1,5 +1,5 @@
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import QuerySet, F
 import uuid
 
 
@@ -42,8 +42,14 @@ class Section(models.Model):
 
     # override default delete because we're storing only start and end item ids, and Item does not point to Section
     def delete(self, using=None, keep_parents=False):
+        # update next questions' order in following manner: - (end_item_order - start_item_order + 1)
+        # last question order must be obtained here because we'll be performing operations on it
+        last_question_order = self.end_item.get_last_question_order()
+        diff = last_question_order - self.start_item.get_first_question_order() + 1
+
         items = self.get_items()
         items.delete()
+        Question.objects.filter(order__gt=last_question_order).update(order=F('order') - diff)
         super().delete(using, keep_parents)
 
 
@@ -101,6 +107,11 @@ class Item(models.Model):
         if not Question.objects.filter(item=self):
             raise AttributeError('Item exists without any question')
         return Question.objects.filter(item=self).order_by('order').first().order
+
+    def get_last_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
+        return Question.objects.filter(item=self).order_by('order').last().order
 
     def is_before(self, item: 'Item'):
         return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
