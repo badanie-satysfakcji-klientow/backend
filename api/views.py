@@ -398,17 +398,32 @@ class QuestionResultRawViewSet(ModelViewSet):
 class SurveyResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'survey_id'
 
-    def get_queryset(self):
+    def get_queryset_questions(self):
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
         question_query = Question.objects.filter(item_id__in=items_query)
-        combined_queryset = question_query.prefetch_related('answers')
         return question_query
+
+    def get_queryset(self):
+        question_query = self.get_queryset_questions()
+        combined_queryset = Answer.objects.filter(question__in=question_query).prefetch_related('question')
+        return combined_queryset
 
     def retrieve(self, request, *args, **kwargs):
         survey = Survey.objects.get(id=self.kwargs['survey_id'])
         survey_title = survey.title[:15].replace('?', '').replace('\\', '').replace('/', '')
+        question_queryset = self.get_queryset_questions()
         queryset = self.get_queryset()
-        # survey_title, queryset
+
+        survey_data = {question: [] for question in question_queryset}
+        for question_answer in queryset:
+            if question_answer.content_numeric:
+                survey_data.get(question_answer.question).append(question_answer.content_numeric)
+            elif question_answer.content_character:
+                survey_data.get(question_answer.question).append(question_answer.content_character)
+            else:
+                survey_data.get(question_answer.question).append(question_answer.option.content)
+
+        # survey_title, question_queryset, queryset
 
         response = HttpResponse(
             content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
@@ -420,7 +435,7 @@ class SurveyResultRawViewSet(ModelViewSet):
         worksheet = workbook.active
         worksheet.title = f'"{survey_title}" results'
 
-        column_titles = [question.value for question in queryset]
+        column_titles = [question.value for question in survey_data.keys()]
         row_num = 1
         for col_num, column_title in enumerate(column_titles, 1):
             cell = worksheet.cell(row=row_num, column=col_num)
@@ -433,10 +448,8 @@ class SurveyResultRawViewSet(ModelViewSet):
 
         row_num = 2
         col_num = 1
-        for question in queryset:
-            answer_queryset = Answer.objects.filter(question_id=question.id)
-            col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
 
+        for col_data in survey_data.values():
             for cell_value in col_data:
                 cell = worksheet.cell(row=row_num, column=col_num)
                 cell.value = cell_value
