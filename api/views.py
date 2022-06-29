@@ -12,7 +12,8 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
     CreatorSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator
+from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator, \
+    SurveySent
 
 from django.http import HttpResponse
 import pandas as pd
@@ -35,14 +36,6 @@ class SurveyViewSet(ModelViewSet):
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
-    def create(self, request, *args, **kwargs):
-        serializer = self.get_serializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        self.perform_create(serializer)
-        headers = self.get_success_headers(serializer.data)
-        return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
-                        headers=headers)
-
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -56,6 +49,13 @@ class SurveyViewSet(ModelViewSet):
         surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
+
+    @action(detail=False, methods=['GET'])
+    def anonymous_retrieve(self, request, *args, **kwargs):
+        survey = Survey.objects.prefetch_related('items')\
+            .get(id=SurveySent.objects.get(id=kwargs['survey_hash']).survey_id)
+        serializer = self.get_serializer(survey)
+        return Response({'status': 'OK', 'survey': serializer.data}, status=status.HTTP_200_OK)
 
 
 class ItemViewSet(ModelViewSet):
@@ -132,6 +132,15 @@ class SubmissionViewSet(ModelViewSet):
         return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=['POST'])
+    def anonymous_create(self, request, *args, **kwargs):
+        serializer = self.get_serializer(data=request.data)
+        serializer.context['survey_id'] = SurveySent.objects.get(id=kwargs['survey_hash']).survey_id
+        serializer.is_valid(raise_exception=True)
+        self.perform_create(serializer)
+        return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
+                        status=status.HTTP_201_CREATED)
+
 
 class AnswerViewSet(ModelViewSet):
     queryset = Answer.objects.all()
@@ -140,6 +149,7 @@ class AnswerViewSet(ModelViewSet):
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.context['question_id'] = kwargs.get('question_id')
+
         serializer.is_valid(raise_exception=True)
         self.perform_create(serializer)
         return Response({'status': 'success', 'answer_id': serializer.data.get('id')},
@@ -177,6 +187,20 @@ class SectionViewSet(ModelViewSet):
         return Response({'status': 'created section',
                          'section_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
+
+    def anonymous_list(self, request, *args, **kwargs):
+        survey = SurveySent.objects.get(id=kwargs['survey_hash']).survey
+
+        # TODO: filter so override filter_queryset
+        queryset = Section.objects.filter(start_item__in=Item.objects.filter(survey=survey).only('id'))
+
+        page = self.paginate_queryset(queryset)
+        if page is not None:
+            serializer = self.get_serializer(page, many=True)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class QuestionViewSet(ModelViewSet):

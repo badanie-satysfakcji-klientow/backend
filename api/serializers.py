@@ -295,6 +295,14 @@ class AnswerSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
 
+        if self.partial:
+            return attrs
+
+        # check if already answered except when can answer multiple times
+        if item_type in ['list', 'gridSingle', 'closedSingle']:
+            if Answer.objects.filter(submission_id=attrs['submission'].id, question_id=attrs['question'].id).exists():
+                raise serializers.ValidationError('Question already answered')
+
         return attrs
 
     def create(self, validated_data):
