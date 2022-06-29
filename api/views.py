@@ -16,7 +16,7 @@ import csv
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
-from api.utils import send_my_mass_mail, xlsx_draw_charts
+from api.utils import send_my_mass_mail, xlsx_question_charts_file
 
 
 class SurveyViewSet(ModelViewSet):
@@ -392,7 +392,7 @@ class QuestionResultRawViewSet(ModelViewSet):
         q_err = 'Question without item type or with invalid type or question doesnt exist'
         if not answer_type or answer_type not in ['option', 'content_numeric', 'content_character'] or not question_val:
             return Response({'status': 'error', 'message': q_err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return xlsx_draw_charts(queryset, question_val, answer_type)
+        return xlsx_question_charts_file(queryset, question_val, answer_type)
 
 
 class SurveyResultRawViewSet(ModelViewSet):
@@ -401,6 +401,7 @@ class SurveyResultRawViewSet(ModelViewSet):
     def get_queryset(self):
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
         question_query = Question.objects.filter(item_id__in=items_query)
+        combined_queryset = question_query.prefetch_related('answers')
         return question_query
 
     def retrieve(self, request, *args, **kwargs):
@@ -432,7 +433,7 @@ class SurveyResultRawViewSet(ModelViewSet):
 
         row_num = 2
         col_num = 1
-        for question in self.get_queryset():
+        for question in queryset:
             answer_queryset = Answer.objects.filter(question_id=question.id)
             col_data = [a.content_character if a.content_character else a.content_numeric for a in answer_queryset]
 
