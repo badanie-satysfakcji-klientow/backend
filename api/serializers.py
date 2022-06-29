@@ -295,7 +295,7 @@ class AnswerSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
 
-        if not self.partial:
+        if self.partial:
             return attrs
 
         # check if already answered except when can answer multiple times
