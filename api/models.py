@@ -125,7 +125,7 @@ class Answer(models.Model):
         db_table = 'answers'
 
     def get_option_content(self):
-        return self.option.content if self.option.content else None
+        return self.option.content if self.option else None
 
     def get_content_type_value(self, content_type: str):
         return self.get_option_content() if content_type == 'option' else getattr(self, content_type)
