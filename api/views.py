@@ -25,7 +25,7 @@ from openpyxl.chart import (
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
-from api.emails import send_my_mass_mail
+from api.utils import send_my_mass_mail
 
 
 class SurveyViewSet(ModelViewSet):
