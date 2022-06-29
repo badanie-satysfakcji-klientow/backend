@@ -139,10 +139,12 @@ class Interviewee(models.Model):
 
 # czy interviewees sa tworzeni na email sent - można zaznaczyć
 class SurveySent(models.Model):
-    survey = models.ForeignKey(Survey, models.DO_NOTHING)
-    # TODO: obviously change that
-    email = models.CharField(max_length=320, editable=False, blank=True, null=True)
     id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
+    survey = models.ForeignKey(Survey, models.DO_NOTHING, related_name='sent')
+    email = models.CharField(max_length=320, editable=False, blank=True, null=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    # TODO: except when trying to send expired survey
 
     def save(self, *args, **kwargs):
         self.id = hashlib.sha256((self.survey_id.hex + self.email).encode('utf-8')).hexdigest()
@@ -173,7 +175,8 @@ class Precondition(models.Model):
 class Submission(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     submitted_at = models.DateTimeField(auto_now_add=True)
-    survey = models.ForeignKey('Survey', models.CASCADE)
+    survey = models.ForeignKey('Survey', models.CASCADE, related_name='submissions')
+    # should be removed in the future, because hash already maps to email address
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
     hash = models.ForeignKey('SurveySent', models.DO_NOTHING, blank=True, null=True)
 

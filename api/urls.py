@@ -44,7 +44,7 @@ urlpatterns = [
          OptionViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='options-uuid'),
 
     path('api/creators/<uuid:creator_id>/surveys',
-         SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-info'),
+         SurveyViewSet.as_view({'get': 'list_brief'}), name='surveys-brief-info'),
     path('api/creators/<uuid:creator_id>',
          CreatorViewSet.as_view({'get': 'retrieve', 'patch': 'check_partial_update', 'delete': 'check_destroy'}),
          name='creator-uuid'),

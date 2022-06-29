@@ -36,17 +36,9 @@ class SurveyViewSet(ModelViewSet):
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
-    def retrieve(self, request, *args, **kwargs):
-        try:
-            instance = self.get_object()
-            serializer = self.get_serializer(instance)
-            return Response(serializer.data)
-        except AttributeError as e:
-            return Response({'status': 'error', 'message': e.args})
-
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
-    def retrieve_brief(self, request, *args, **kwargs):  # use prefetch_related
-        surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])
+    def list_brief(self, request, *args, **kwargs):  # use prefetch_related
+        surveys = Survey.objects.filter(creator_id=kwargs['creator_id']).prefetch_related('submissions')
         serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
         return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
 
@@ -84,6 +76,7 @@ class ItemViewSet(ModelViewSet):
         partial = kwargs.pop('partial', False)
         instance = self.get_object()
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        # validate that and move to serializer
         serializer.context['type'] = request.data.get('type')
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
