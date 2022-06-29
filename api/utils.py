@@ -1,10 +1,23 @@
+import datetime
+
 from django.core.mail import send_mass_mail
 from django.core.mail import get_connection, EmailMultiAlternatives
 from threading import Thread
+
+from django.http import HttpResponse
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 from django.conf import settings
-# from django.urls import reverse
+from openpyxl import Workbook
+from openpyxl.chart import (
+    PieChart,
+    ProjectedPieChart,
+    Reference,
+    BarChart
+)
+from openpyxl.chart.label import DataLabelList
+from openpyxl.styles import Font, Border, Side
+from collections import Counter
 
 
 def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
@@ -53,3 +66,87 @@ def send_my_mass_mail(survey_id, survey_title, email_list, html=True) -> None:
         data_tuple_txt = ((survey_title, txt_message, None, email_list),)
         t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
         t.start()
+
+
+def draw_charts_to_xlsx(queryset, question_val, answer_type) -> HttpResponse:
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename={question}-{date}-results.xlsx'.format(
+        date=datetime.datetime.now().strftime('%Y-%m-%d'), question=question_val
+    )
+
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = f'"{question_val}" pie'
+
+    if answer_type == 'option':
+        answers = queryset.prefetch_related('option').values_list('option__content', flat=True)
+    elif answer_type == 'content_numeric':
+        answers = queryset.values_list('content_numeric', flat=True)
+    else:
+        answers = queryset.values_list('content_character', flat=True)
+        answers = [' '.join(content_character.lower().strip().split()) for content_character in answers
+                   if content_character is not None]
+
+    counted = Counter(answers)
+    statement = len(counted) > 5
+    counted = counted.most_common(5) if statement else counted.most_common()
+    max_row = len(counted)
+
+    if not max_row:
+        row = ['Brak odpowiedzi na to pytanie']
+        worksheet.append(row)
+        workbook.save(response)
+        return response
+
+    # normal pie
+    for row in counted:
+        worksheet.append(row)
+    pie = PieChart()
+    labels = Reference(worksheet, min_col=1, min_row=1, max_row=max_row)
+    data = Reference(worksheet, min_col=2, min_row=1, max_row=max_row)
+    pie.add_data(data)
+    pie.set_categories(labels)
+    pie.title = question_val
+    pie.dataLabels = DataLabelList()
+    pie.dataLabels.showVal = True
+    worksheet.add_chart(pie, "D1")
+
+    # projected pie
+    ws = workbook.create_sheet(title=f'"{question_val}" projection')
+    for row in counted:
+        ws.append(row)
+    projected_pie = ProjectedPieChart()
+    projected_pie.type = "bar"
+    projected_pie.splitType = "pos"  # split by value
+    labels = Reference(ws, min_col=1, min_row=1, max_row=max_row)
+    data = Reference(ws, min_col=2, min_row=1, max_row=max_row)
+    projected_pie.add_data(data)
+    projected_pie.dataLabels = DataLabelList()
+    projected_pie.dataLabels.showVal = True
+    projected_pie.set_categories(labels)
+    projected_pie.title = question_val
+    ws.add_chart(projected_pie, "D2")
+
+    # bar
+    ws2 = workbook.create_sheet(title=f'"{question_val}" bar')
+    for row in counted:
+        ws2.append(row)
+    bar = BarChart()
+    bar.type = "col"
+    # bar.style = 10
+    bar.title = question_val
+    bar.y_axis.title = "Ilość wystąpień"
+    bar.x_axis.title = "Udzielone odpowiedzi"
+    labels = Reference(ws2, min_col=1, min_row=1, max_row=max_row)
+    data = Reference(ws2, min_col=2, min_row=1, max_row=max_row)
+    bar.dataLabels = DataLabelList()
+    bar.dataLabels.showVal = True
+    bar.add_data(data)
+    bar.set_categories(labels)
+    bar.shape = 4
+    ws2.add_chart(bar, "D3")
+
+    workbook.save(response)
+    return response
