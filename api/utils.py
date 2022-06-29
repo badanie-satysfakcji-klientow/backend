@@ -68,7 +68,7 @@ def send_my_mass_mail(survey_id, survey_title, email_list, html=True) -> None:
         t.start()
 
 
-def draw_charts_to_xlsx(queryset, question_val, answer_type) -> HttpResponse:
+def xlsx_draw_charts(queryset, question_val, answer_type) -> HttpResponse:
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )

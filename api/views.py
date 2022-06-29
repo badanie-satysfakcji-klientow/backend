@@ -16,7 +16,7 @@ import csv
 from openpyxl import Workbook
 from openpyxl.styles import Font, Border, Side
 from openpyxl.utils import get_column_letter
-from api.utils import send_my_mass_mail, draw_charts_to_xlsx
+from api.utils import send_my_mass_mail, xlsx_draw_charts
 
 
 class SurveyViewSet(ModelViewSet):
@@ -392,7 +392,7 @@ class QuestionResultRawViewSet(ModelViewSet):
         q_err = 'Question without item type or with invalid type or question doesnt exist'
         if not answer_type or answer_type not in ['option', 'content_numeric', 'content_character'] or not question_val:
             return Response({'status': 'error', 'message': q_err}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
-        return draw_charts_to_xlsx(queryset, question_val, answer_type)
+        return xlsx_draw_charts(queryset, question_val, answer_type)
 
 
 class SurveyResultRawViewSet(ModelViewSet):
