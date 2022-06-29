@@ -43,13 +43,12 @@ precondition_router = routers.NestedSimpleRouter(
 precondition_router.register(r'preconditions', PreconditionViewSet)
 
 # uncomment when creator CRUD added
-interviewee_csv_router = routers.NestedSimpleRouter(
+creator_nested_router = routers.NestedSimpleRouter(
     creator_router,
     r'creators',
     lookup='creator'
 )
-interviewee_csv_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
-
+creator_nested_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
 
 # routed
 urlpatterns = [
@@ -112,9 +111,6 @@ urlpatterns += [
     # uncomment and move to previous urlpatterns when creator CRUD added
     # path('api/', include(creator_router.urls)),
     # path('api/', include(interviewee_csv_router.urls)),
-
-
-
 
     # send email
     path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-manually'),
