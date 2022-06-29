@@ -41,15 +41,6 @@ class SurveyViewSet(ModelViewSet):
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
 
-    # TODO: awaiting delete
-    # def create(self, request, *args, **kwargs):
-    #     serializer = self.get_serializer(data=request.data)
-    #     serializer.is_valid(raise_exception=True)
-    #     self.perform_create(serializer)
-    #     headers = self.get_success_headers(serializer.data)
-    #     return Response({'status': 'created', 'survey_id': serializer.data.get('id')}, status=status.HTTP_201_CREATED,
-    #                     headers=headers)
-
     def retrieve(self, request, *args, **kwargs):
         try:
             instance = self.get_object()
@@ -70,22 +61,6 @@ class SurveyViewSet(ModelViewSet):
             .get(id=SurveySent.objects.get(id=kwargs['survey_hash']).survey_id)
         serializer = self.get_serializer(survey)
         return Response({'status': 'OK', 'survey': serializer.data}, status=status.HTTP_200_OK)
-
-# for get survey,
-# class TokenizedSurveyViewSet(ViewSet):
-#     @action(detail=)
-#     def get_sections(self):
-#         # return Survey.objects.prefetch_related('items').filter(creator_id=self.kwargs['creator_id'])
-#         pass
-#
-#     def get_survey(self):
-#         pass
-#
-#     def post_submit(self):
-#         pass
-#
-#     def post_answer(self):
-#         pass
 
 
 class ItemViewSet(ModelViewSet):
