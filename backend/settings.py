@@ -117,7 +117,7 @@ DATABASES = {
             'options': '-c search_path=public'
         },
         'TEST': {
-            'NAME': 'test-badanie-satysfakcji-klientow',
+            'NAME': 'testxysdfz-badanie-satysfakcji-klientow',
         }
     },
 }

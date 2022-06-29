@@ -54,7 +54,8 @@ class SurveyInfoSerializer(SurveySerializer):
     def get_response_rate(instance):
         sent = SurveySent.objects.filter(survey=instance).count()
         submitted = Submission.objects.filter(survey=instance).count()
-        return {'sent': sent, 'submitted': submitted, 'response_rate': round(submitted / sent * 100, 2) if sent > 0 else 0}
+        return {'sent': sent, 'submitted': submitted,
+                'response_rate': round(submitted / sent * 100, 2) if sent > 0 else 0}
 
 
 class QuestionSerializer(serializers.ModelSerializer):
@@ -182,7 +183,7 @@ class ItemSerializer(serializers.ModelSerializer):
             # get max order index from questions in survey
             survey_items = Item.objects.filter(survey_id=self.context['survey_id'])
             max_order = Question.objects.filter(item_id__in=survey_items) \
-                            .aggregate(max_order=Max('order'))['max_order'] or 0
+                                        .aggregate(max_order=Max('order'))['max_order'] or 0
             self.context['questions'] = {}
             questions = Question.objects \
                 .bulk_create([Question(item_id=item.id, order=max_order + 1, value=question) for question in questions])
@@ -412,9 +413,9 @@ class SectionSerializer(serializers.ModelSerializer):
                     .order_by('order')
                     .first().order) <= \
                    (end_item_order := Question.objects
-                           .filter(item_id=attrs['end_item'].id)
-                           .order_by('order')
-                           .first().order):
+                    .filter(item_id=attrs['end_item'].id)
+                    .order_by('order')
+                    .first().order):
                 raise serializers.ValidationError('Start item must be before or equal to end item')
         except AttributeError:
             raise serializers.ValidationError('Start item or end item not found')
