@@ -15,9 +15,12 @@ from openpyxl.chart import (
     Reference,
     BarChart
 )
+from openpyxl.utils import get_column_letter
 from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from collections import Counter
+
+from api.models import Answer
 
 
 def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None, connection=None):
@@ -152,5 +155,66 @@ def xlsx_question_charts_file(queryset, question_val, answer_type) -> HttpRespon
     return response
 
 
-def xlsx_survey_results():
-    pass
+def xlsx_survey_results(queryset, survey_title) -> HttpResponse:
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    )
+    response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
+        date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey_title
+    )
+    workbook = Workbook()
+    worksheet = workbook.active
+    worksheet.title = f'"{survey_title}" results'
+
+    for col_num, question in enumerate(queryset, 1):
+        row_num = 1
+        cell = worksheet.cell(row=row_num, column=col_num)
+        cell.value = question.value
+        cell.font = Font(name='Calibri', bold=True)
+        cell.border = Border(bottom=Side(border_style='medium', color='FF000000'), )
+        column_letter = get_column_letter(col_num)
+        column_dimensions = worksheet.column_dimensions[column_letter]
+        column_dimensions.width = 30
+
+        for answer in Answer.objects.filter(question_id=question.id):
+            row_num += 1
+            cell = worksheet.cell(row=row_num, column=col_num)
+            cell.value = answer.get_content_type_value(question.get_answer_content_type())
+
+    worksheet.freeze_panes = worksheet['A2']
+    workbook.save(response)
+    return response
+
+
+# def xlsx_survey_results2(queryset, queryset_combined, survey_title) -> HttpResponse:    # co lepsze?
+#     response = HttpResponse(
+#         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+#     )
+#     response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
+#         date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey_title
+#     )
+#     workbook = Workbook()
+#     worksheet = workbook.active
+#     worksheet.title = f'"{survey_title}" results'
+#
+#     survey_data = {question: [] for question in queryset}
+#     for q_a in queryset_combined:
+#         survey_data.get(q_a.question).append(q_a.get_content_type_value(q_a.question.get_answer_content_type()))
+#
+#     for col_num, (question, answer_list) in enumerate(survey_data.items(), 1):
+#         row_num = 1
+#         cell = worksheet.cell(row=row_num, column=col_num)
+#         cell.value = question.value
+#         cell.font = Font(name='Calibri', bold=True)
+#         cell.border = Border(bottom=Side(border_style='medium', color='FF000000'), )
+#         column_letter = get_column_letter(col_num)
+#         column_dimensions = worksheet.column_dimensions[column_letter]
+#         column_dimensions.width = 30
+#         for answer in answer_list:
+#             row_num += 1
+#             cell = worksheet.cell(row=row_num, column=col_num)
+#             cell.value = answer
+#
+#     worksheet.freeze_panes = worksheet['A2']
+#     workbook.save(response)
+#     return response

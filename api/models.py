@@ -110,7 +110,7 @@ class Question(models.Model):
         for key, val in content_map.items():
             if self.item.type in key:
                 return val
-        return None
+        raise ValueError('Item type out of range')
 
 
 class Answer(models.Model):
@@ -123,6 +123,9 @@ class Answer(models.Model):
 
     class Meta:
         db_table = 'answers'
+
+    def get_content_type_value(self, content_type: str):
+        return self.option.content if content_type == 'option' else getattr(self, content_type)
 
 
 class Interviewee(models.Model):

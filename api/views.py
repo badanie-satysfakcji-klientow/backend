@@ -13,10 +13,8 @@ from .models import Survey, Item, Question, Option, Answer, Submission, Section,
 from django.http import HttpResponse
 import pandas as pd
 import csv
-from openpyxl import Workbook
-from openpyxl.styles import Font, Border, Side
-from openpyxl.utils import get_column_letter
-from api.utils import send_my_mass_mail, xlsx_question_charts_file
+from api.utils import send_my_mass_mail, xlsx_question_charts_file, xlsx_survey_results
+# from api.utils import xlsx_survey_results2
 
 
 class SurveyViewSet(ModelViewSet):
@@ -398,66 +396,21 @@ class QuestionResultRawViewSet(ModelViewSet):
 class SurveyResultRawViewSet(ModelViewSet):
     lookup_url_kwarg = 'survey_id'
 
-    def get_queryset_questions(self):
+    def get_queryset(self):
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
         question_query = Question.objects.filter(item_id__in=items_query)
         return question_query
 
-    def get_queryset(self):
-        question_query = self.get_queryset_questions()
+    def get_queryset_combined(self):
+        question_query = self.get_queryset()
         combined_queryset = Answer.objects.filter(question__in=question_query).prefetch_related('question')
         return combined_queryset
 
     def retrieve(self, request, *args, **kwargs):
         survey = Survey.objects.get(id=self.kwargs['survey_id'])
         survey_title = survey.title[:15].replace('?', '').replace('\\', '').replace('/', '')
-        question_queryset = self.get_queryset_questions()
-        queryset = self.get_queryset()
-
-        survey_data = {question: [] for question in question_queryset}
-        for question_answer in queryset:
-            if question_answer.content_numeric:
-                survey_data.get(question_answer.question).append(question_answer.content_numeric)
-            elif question_answer.content_character:
-                survey_data.get(question_answer.question).append(question_answer.content_character)
-            else:
-                survey_data.get(question_answer.question).append(question_answer.option.content)
-
-        # survey_title, question_queryset, queryset
-
-        response = HttpResponse(
-            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-        )
-        response['Content-Disposition'] = 'attachment; filename={survey_title}-{date}-results.xlsx'.format(
-            date=datetime.datetime.now().strftime('%Y-%m-%d'), survey_title=survey_title
-        )
-        workbook = Workbook()
-        worksheet = workbook.active
-        worksheet.title = f'"{survey_title}" results'
-
-        column_titles = [question.value for question in survey_data.keys()]
-        row_num = 1
-        for col_num, column_title in enumerate(column_titles, 1):
-            cell = worksheet.cell(row=row_num, column=col_num)
-            cell.value = column_title
-            cell.font = Font(name='Calibri', bold=True)
-            cell.border = Border(bottom=Side(border_style='medium', color='FF000000'),)
-            column_letter = get_column_letter(col_num)
-            column_dimensions = worksheet.column_dimensions[column_letter]
-            column_dimensions.width = 30
-
-        row_num = 2
-        col_num = 1
-
-        for col_data in survey_data.values():
-            for cell_value in col_data:
-                cell = worksheet.cell(row=row_num, column=col_num)
-                cell.value = cell_value
-                row_num += 1
-
-            row_num = 2
-            col_num += 1
-
-        worksheet.freeze_panes = worksheet['A2']
-        workbook.save(response)
-        return response
+        return xlsx_survey_results(self.get_queryset(), survey_title)
+        # zapytać InsERT które poejście lepsze (2 zapytania do bazy i dict czy zapytanie o Answers co każde Question
+        # wbrew pozorom pierwsze może zająć dużo pamięci przy ogromnej ilości danych, drugie z kolei spam do bazy
+        # ewentualnie dać parametr do wywołania funkcji, którą chcemy
+        # return xlsx_survey_results2(self.get_queryset(), self.get_queryset_combined(), survey_title)
