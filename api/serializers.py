@@ -275,13 +275,6 @@ class AnswerSerializer(serializers.ModelSerializer):
 
         item_type = ItemSerializer.type_map[Item.objects.get(id=item_id).type]
 
-        # check if already answered except for those cases
-        if item_type not in ['gridMultiple', 'closedMultiple']:
-            attrs = self.del_attrs(attrs, ['content_numeric', 'content_character'])
-        else:
-            # TODO: check if answered with the same option
-            pass
-
         if item_type in ['list', 'gridSingle', 'gridMultiple', 'closedSingle', 'closedMultiple']:
             if not attrs['option']:
                 raise serializers.ValidationError('Option is required')
@@ -295,6 +288,14 @@ class AnswerSerializer(serializers.ModelSerializer):
             if not attrs['content_numeric']:
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
+
+        if not self.partial:
+            return attrs
+
+        # check if already answered except when can answer multiple times
+        if item_type in ['list', 'gridSingle', 'closedSingle']:
+            if Answer.objects.filter(submission_id=attrs['submission'].id, question_id=attrs['question'].id).exists():
+                raise serializers.ValidationError('Question already answered')
 
         return attrs
 

@@ -436,7 +436,7 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
             try:
-                SendEmailViewSet.send_my_mass_mail(survey_id, email_list)
+                send_my_mass_mail(survey_id, email_list)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error during sending email',
                                  'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
