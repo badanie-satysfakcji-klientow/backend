@@ -7,14 +7,16 @@ from rest_framework.response import Response
 from rest_framework.viewsets import ModelViewSet
 from rest_framework.decorators import action
 
+
+from .paginators import StandardResultsSetPagination, SectionPagination
 from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer, \
     QuestionSerializer, OptionSerializer, AnswerSerializer, SubmissionSerializer, SectionSerializer, \
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
     CreatorSerializer
-from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator, \
-    SurveySent
 
+from .models import Survey, Item, Question, Option, Answer, Submission, Interviewee, Precondition, SurveySent, \
+    Section, Creator
 from django.http import HttpResponse
 import pandas as pd
 import csv
@@ -32,15 +34,17 @@ from api.emails import send_my_mass_mail
 
 
 class SurveyViewSet(ModelViewSet):
-    queryset = Survey.objects.prefetch_related('items')
+    queryset = Survey.objects.prefetch_related('items', 'items__questions')
     serializer_class = SurveySerializer
     lookup_url_kwarg = 'survey_id'
+    pagination_class = StandardResultsSetPagination
 
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
     def list_brief(self, request, *args, **kwargs):  # use prefetch_related
         surveys = Survey.objects.filter(creator_id=kwargs['creator_id']).prefetch_related('submissions')
-        serializer = SurveyInfoSerializer(surveys, many=True)  # using different serializer for that action
-        return Response({'status': 'OK', 'surveys': serializer.data}, status=status.HTTP_200_OK)
+        # using different serializer for that action
+        serializer = SurveyInfoSerializer(self.paginate_queryset(surveys), many=True)
+        return self.get_paginated_response(serializer.data)
 
     @action(detail=False, methods=['GET'])
     def anonymous_retrieve(self, request, *args, **kwargs):
@@ -91,6 +95,7 @@ class ItemViewSet(ModelViewSet):
 
 class AnswersCountViewSet(ModelViewSet):
     serializer_class = AnswerQuestionCountSerializer
+    pagination_class = StandardResultsSetPagination
 
     def get_queryset(self):
         submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
@@ -100,12 +105,9 @@ class AnswersCountViewSet(ModelViewSet):
         return Question.objects.filter(id__in=answers_query)
 
     def list(self, request, *args, **kwargs):
-        serializer = self.get_serializer(self.get_queryset(), many=True)
-        try:
-            return Response({'status': 'OK', 'answers_count': serializer.data}, status=status.HTTP_200_OK)
-        except Exception as e:
-            return Response({'status': 'Not found', 'message': e.args}, status=status.HTTP_404_NOT_FOUND)
-        pass
+        paginated_queryset = self.paginate_queryset(self.get_queryset())
+        serializer = self.get_serializer(paginated_queryset, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
 class SubmissionViewSet(ModelViewSet):
@@ -166,7 +168,10 @@ class AnswerViewSet(ModelViewSet):
 
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
-    queryset = Section.objects.all()
+    pagination_class = SectionPagination
+
+    def get_queryset(self):
+        return Survey.objects.get(id=self.kwargs['survey_id']).get_sections_in_order()
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -232,6 +237,7 @@ class SurveyResultViewSet(ModelViewSet):
     serializer_class = SurveyResultSerializer
     queryset = Survey.objects.all()
     lookup_url_kwarg = 'survey_id'
+    pagination_class = StandardResultsSetPagination
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -247,10 +253,11 @@ class SurveyResultViewSet(ModelViewSet):
         # get all question results for a survey
         result_info_serializer = SurveyResultInfoSerializer(self.queryset.get(id=self.kwargs['survey_id']), many=False)
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])
-        result_serializer = self.serializer_class(Question.objects.filter(item_id__in=items_query), many=True)
-        return Response({'results_info': result_info_serializer.data,
-                         'results': result_serializer.data},
-                        status=status.HTTP_200_OK)
+        result_serializer = self.serializer_class(
+            self.paginate_queryset(Question.objects.filter(item_id__in=items_query)), many=True)
+        return self.get_paginated_response(
+            {'results_info': result_info_serializer.data,
+             'results': result_serializer.data})
 
 
 class SurveyResultFullViewSet(SurveyResultViewSet):
