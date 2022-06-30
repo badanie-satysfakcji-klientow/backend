@@ -37,7 +37,7 @@ class CSVIntervieweeAPITest(APITestCase):
             farewell=lorem.words(2)
         )
 
-        self.rev_csv_url = reverse('intervieweescsv-list', args=[self.creator.id])
+        self.rev_csv_url = reverse('interviewees-csv-list', args=[self.creator.id])
 
     def test_export_interviewees(self):
         response = self.client.get(self.rev_csv_url)

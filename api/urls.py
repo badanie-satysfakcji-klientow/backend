@@ -30,7 +30,7 @@ interviewee_csv_router = routers.NestedSimpleRouter(
     r'creators',
     lookup='creator'
 )
-interviewee_csv_router.register(r'intervieweescsv', CSVIntervieweesViewSet)
+interviewee_csv_router.register(r'interviewees-csv', CSVIntervieweesViewSet)
 
 items_router = routers.NestedSimpleRouter(
     survey_router,
