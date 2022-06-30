@@ -20,7 +20,7 @@ from openpyxl.chart.label import DataLabelList
 from openpyxl.styles import Font, Border, Side
 from collections import Counter
 
-from api.models import Answer
+from api.models import Answer, SurveySent, Survey
 import csv
 
 
@@ -46,30 +46,32 @@ def send_mass_html_mail(datatuple, fail_silently=False, user=None, password=None
     return connection.send_messages(messages)
 
 
-def send_my_mass_mail(survey_id, survey_title, email_list, html=True) -> None:
+def send_my_mass_mail(survey_id, email_list, html=True) -> None:
     """
     starts new thread sending mass email (to prevent API freeze) - significantly speeds up the request
     current link to survey: DOMAIN_NAME/survey/<survey_id>
     """
-    # partial_link = reverse('surveys-uuid', args=[survey_id])
-    # partial_link = partial_link.replace('surveys', 'survey')
-    # ^ pointless
+    survey = Survey.objects.get(id=survey_id)
+    survey_title = survey.title
 
-    partial_link = f'/survey/{survey_id}'
-    survey_link = settings.DOMAIN_NAME + partial_link
+    sent_surveys = [SurveySent.objects.create(survey=survey, email=email) for email in email_list]
+    for survey_sent in sent_surveys:    # optimize in future
+        partial_link = f'/survey/{survey_sent.id}'
+        survey_link = settings.DOMAIN_NAME + partial_link
 
-    context = {'link': survey_link}
-    html_message = render_to_string('email_template.html', context=context)
-    txt_message = strip_tags(html_message)
+        context = {'link': survey_link}
+        html_message = render_to_string('email_template.html', context=context)
+        txt_message = strip_tags(html_message)
+        email_list_sent = [survey_sent.email]
 
-    if html:
-        data_tuple_html = ((survey_title, txt_message, html_message, None, email_list),)
-        t = Thread(target=send_mass_html_mail, args=(data_tuple_html,))
-        t.start()
-    else:
-        data_tuple_txt = ((survey_title, txt_message, None, email_list),)
-        t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
-        t.start()
+        if html:
+            data_tuple_html = ((survey_title, txt_message, html_message, None, email_list_sent),)
+            t = Thread(target=send_mass_html_mail, args=(data_tuple_html,))
+            t.start()
+        else:
+            data_tuple_txt = ((survey_title, txt_message, None, email_list_sent),)
+            t = Thread(target=send_mass_mail, args=(data_tuple_txt,))
+            t.start()
 
 
 def csv_interviewees_file(queryset):

@@ -174,10 +174,11 @@ class Interviewee(models.Model):
 
 # czy interviewees sa tworzeni na email sent - można zaznaczyć
 class SurveySent(models.Model):
+    id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
     # TODO: obviously change that
     email = models.CharField(max_length=320, editable=False, blank=True, null=True)
-    id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
+    sent_at = models.DateTimeField(auto_now_add=True)
 
     def save(self, *args, **kwargs):
         self.id = hashlib.sha256((self.survey_id.hex + self.email).encode('utf-8')).hexdigest()

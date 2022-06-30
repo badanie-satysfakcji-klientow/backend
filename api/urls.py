@@ -13,7 +13,7 @@ urlpatterns = [
     path('api/surveys/<uuid:survey_id>/sections/<uuid:section_id>',
          SectionViewSet.as_view({'get': 'retrieve', 'put': 'update', 'patch': 'partial_update',  'delete': 'destroy'}),
          name='sections-uuid'),  # TODO: update that to use router
-    path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'send'}), name='send-manually'),
+    path('api/surveys/<uuid:survey_id>/send', SendEmailViewSet.as_view({'post': 'create'}), name='send-manually'),
     path('api/surveys/<uuid:survey_id>/submit', SubmissionViewSet.as_view({'post': 'create'}), name='submit'),
     path('api/surveys/<uuid:survey_id>/submissions',
          AnswersCountViewSet.as_view({'get': 'list'}), name='submissions-get-count'),
