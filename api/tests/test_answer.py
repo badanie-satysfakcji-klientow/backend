@@ -88,7 +88,7 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(Answer.objects.count(), 3)
 
     def test_can_update_answer(self):
-        url = reverse('questions-answer-update', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        url = reverse('answer-uuid', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
         response = self.client.patch(url, {
             'submission': self.submission.id,
             'content_character': 'new content',
@@ -97,6 +97,13 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['content_character'], 'new content')
         self.assertEqual(Answer.objects.get(id=self.answer.id).content_character, 'new content')
+
+    def test_can_delete_answer(self):
+        url = reverse('answer-uuid', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Answer.objects.count(), 1)
 
     def test_can_get_answers_count(self):
         url = reverse('submissions-get-count', kwargs={'survey_id': self.survey.id})
