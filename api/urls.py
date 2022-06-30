@@ -4,7 +4,7 @@ from rest_framework_nested import routers
 from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet, SectionViewSet, \
     QuestionViewSet, OptionViewSet, AnswersCountViewSet, SurveyResultViewSet, SendEmailViewSet, \
     IntervieweeViewSet, CSVIntervieweesViewSet, SurveyResultFullViewSet, PreconditionViewSet, \
-    SurveyResultRawViewSet, QuestionResultRawViewSet, CreatorViewSet
+    SurveyResultRawViewSet, QuestionResultRawViewSet, CreatorViewSet, AnonymousSubmissionViewSet
 
 survey_router = routers.SimpleRouter(trailing_slash=False)
 survey_router.register(r'surveys', SurveyViewSet)
@@ -72,6 +72,7 @@ urlpatterns = [
 urlpatterns += [
     # TODO: route that
     # results
+
     path('api/questions/<uuid:question_id>/results',
          SurveyResultViewSet.as_view({'get': 'retrieve'}), name='question-results'),
     path('api/questions/<uuid:question_id>/results/more',
@@ -82,4 +83,14 @@ urlpatterns += [
     path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
     path('api/surveys/<uuid:survey_id>/results/raw',
          SurveyResultRawViewSet.as_view({'get': 'retrieve'}), name='results-raw'),
+]
+
+# tokenized_urls (anonymous survey), TODO: replace surveys-h with surveys in the future
+urlpatterns += [
+    path('api/surveys-h/<str:survey_hash>/sections',
+         SectionViewSet.as_view({'get': 'list'}), name='sections-anonymous'),
+    path('api/surveys-h/<str:survey_hash>/submit',
+         AnonymousSubmissionViewSet.as_view({'post': 'create'}), name='submit-anonymous'),
+    path('api/surveys-h/<str:survey_hash>',
+         SurveyViewSet.as_view({'get': 'anonymous_retrieve'}), name='surveys-anonymous'),  # should not be used
 ]

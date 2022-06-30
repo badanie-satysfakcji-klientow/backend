@@ -75,22 +75,71 @@ class SectionAPITest(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Section.objects.count(), 1)
 
-    # TODO: Create functionality- delete section
-    # def test_delete_section(self):
-    #     section = Section.objects.create(
-    #         start_item=self.survey_item1,
-    #         end_item=self.survey_item2,
-    #         title=lorem.words(5),
-    #         description=lorem.sentence(),
-    #     )
-    #     url = reverse('sections-uuid', kwargs={'section_id': section.id})
-    #     response = self.client.delete(url)
-    #
-    #     self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-    #     self.assertEqual(Section.objects.count(), 0)
+    def test_can_update_section_details(self):
+        section = Section.objects.create(
+            start_item=self.survey_item1,
+            end_item=self.survey_item3,
+            title=lorem.words(5),
+            description=lorem.sentence(),
+        )
+
+        url = reverse('section-detail', args=[self.survey.id, section.id])
+        new_title = lorem.words(5)
+        new_description = lorem.sentence()
+        response = self.client.patch(url, {
+            'title': new_title,
+            'description': new_description,
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(Section.objects.get(id=section.id).title, new_title)
+        self.assertEqual(Section.objects.get(id=section.id).description, new_description)
+
+    def test_delete_section(self):
+        section = Section.objects.create(
+            start_item=self.survey_item1,
+            end_item=self.survey_item3,
+            title=lorem.words(5),
+            description=lorem.sentence(),
+        )
+        url = reverse('section-detail', args=[self.survey.id, section.id])
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Section.objects.count(), 0)
+        self.assertEqual(Item.objects.count(), 0)
+
+    def test_delete_middle_section(self):
+        Section.objects.create(
+            start_item=self.survey_item1,
+            end_item=self.survey_item1,
+            title=lorem.words(5),
+            description=lorem.sentence(),
+        )
+        section2 = Section.objects.create(
+            start_item=self.survey_item2,
+            end_item=self.survey_item2,
+            title=lorem.words(5),
+            description=lorem.sentence(),
+        )
+        Section.objects.create(
+            start_item=self.survey_item3,
+            end_item=self.survey_item3,
+            title=lorem.words(5),
+            description=lorem.sentence(),
+        )
+
+        url = reverse('section-detail', args=[self.survey.id, section2.id])
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        # self.assertEqual(Section.objects.count(), 2)
+        self.assertEqual(Item.objects.count(), 2)
+        self.assertEqual(Question.objects.count(), 2)
+        self.assertEqual(Question.objects.get(id=self.item3_question.id).order, 2)
 
     def test_can_create_separate_sections(self):
-        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', args=[self.survey.id])
 
         # according to issue #74 we make 3 requests
         # same url
@@ -132,7 +181,7 @@ class SectionAPITest(APITestCase):
             survey_id=self.survey.id,
         )
 
-        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', args=[self.survey.id])
         response = self.client.post(url, {
             'start_item': no_question_item.id,
             'end_item': no_question_item.id,

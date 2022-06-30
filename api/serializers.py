@@ -92,6 +92,12 @@ class OptionSerializer(serializers.ModelSerializer):
         fields = ['id', 'content']
 
 
+class CreatorSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Creator
+        fields = ['id', 'email', 'password', 'phone']
+
+
 class AnswerQuestionCountSerializer(serializers.ModelSerializer):
     count = serializers.SerializerMethodField(read_only=True)
 
@@ -289,6 +295,14 @@ class AnswerSerializer(serializers.ModelSerializer):
                 raise serializers.ValidationError('Content is required')
             self.del_attrs(attrs, ['option', 'content_character'])
 
+        if self.partial:
+            return attrs
+
+        # check if already answered except when can answer multiple times
+        if item_type in ['list', 'gridSingle', 'closedSingle']:
+            if Answer.objects.filter(submission_id=attrs['submission'].id, question_id=attrs['question'].id).exists():
+                raise serializers.ValidationError('Question already answered')
+
         return attrs
 
     def create(self, validated_data):
@@ -376,6 +390,11 @@ class SectionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         survey_id = self.context['survey_id']
 
+        if not hasattr(attrs, 'start_item') and self.partial:
+            attrs['start_item'] = Section.objects.get(id=self.instance.id).start_item
+        if not hasattr(attrs, 'end_item') and self.partial:
+            attrs['end_item'] = Section.objects.get(id=self.instance.id).end_item
+
         if not Item.objects.filter(survey_id=survey_id, id=attrs['start_item'].id).exists():
             raise serializers.ValidationError('Start item not found')
         if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
@@ -402,15 +421,11 @@ class SectionSerializer(serializers.ModelSerializer):
         for section in sections:
             section.start_item_order = Question.objects.get(item_id=section.start_item_id).order
             section.end_item_order = Question.objects.get(item_id=section.end_item_id).order
-            if section.start_item_order <= start_item_order <= section.end_item_order or \
-                    section.start_item_order <= end_item_order <= section.end_item_order:
+            if section.start_item_order < start_item_order <= section.end_item_order or \
+                    section.start_item_order <= end_item_order < section.end_item_order:
                 raise serializers.ValidationError('Sections overlap')
 
         return attrs
-
-    # TODO: section update
-    # def update(self, instance, validated_data):
-    #     pass
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
@@ -459,12 +474,6 @@ class PreconditionSerializer(serializers.ModelSerializer):
             if not Option.objects.get(id=attrs['expected_option'].id).item_id == self.instance.item_id:
                 raise serializers.ValidationError('Expected option not found')
         return attrs
-
-
-class CreatorSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Creator
-        fields = ['id', 'email', 'password', 'phone']
 
 
 class IntervieweeSerializer(serializers.ModelSerializer):

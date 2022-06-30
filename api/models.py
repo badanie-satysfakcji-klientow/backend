@@ -1,5 +1,7 @@
 from django.db import models
+from django.db.models import QuerySet, F
 import uuid
+import hashlib  # for hashing sent emails
 
 
 class Option(models.Model):
@@ -21,6 +23,14 @@ class Section(models.Model):
     class Meta:
         db_table = 'sections'
 
+    def get_items(self) -> QuerySet:
+        start_item_order = self.start_item.get_first_question_order()
+        end_item_order = self.end_item.get_first_question_order()
+
+        item_ids = Question.objects.filter(order__gte=start_item_order, order__lte=end_item_order)\
+            .values_list('item_id', flat=True)
+        return Item.objects.filter(id__in=item_ids)
+
     def get_items_in_order(self):
         items = Item.objects.prefetch_related('questions').filter(section=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
@@ -31,9 +41,22 @@ class Section(models.Model):
     def get_survey_id(self):
         return self.start_item.survey_id
 
+    # override default delete because we're storing only start and end item ids, and Item does not point to Section
+    def delete(self, using=None, keep_parents=False):
+        # update next questions' order in following manner: - (end_item_order - start_item_order + 1)
+        # last question order must be obtained here because we'll be performing operations on it
+        last_question_order = self.end_item.get_last_question_order()
+        diff = last_question_order - self.start_item.get_first_question_order() + 1
+
+        items = self.get_items()
+        items.delete()
+        Question.objects.filter(order__gt=last_question_order).update(order=F('order') - diff)
+        super().delete(using, keep_parents)
+
 
 class Creator(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    interviewees = models.ManyToManyField('Interviewee')
     email = models.EmailField(max_length=320, unique=True)
     password = models.CharField(max_length=255)
     phone = models.CharField(max_length=18, blank=True, null=True)
@@ -59,7 +82,7 @@ class Survey(models.Model):
         db_table = 'surveys'
 
     def get_sections_in_order(self):
-        items = Item.objects.prefetch_related('questions',  'options').filter(survey=self).values_list('id')
+        items = Item.objects.prefetch_related('questions', 'options').filter(survey=self).values_list('id')
         sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items).order_by()
         return sorted(sections, key=lambda x: x.get_start_question_order())
 
@@ -73,7 +96,10 @@ class Survey(models.Model):
 
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
-    survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE, db_column='survey_id')
+    survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE)
+
+    # TODO: that should be added
+    #   section = models.ForeignKey(Section, related_name='section-items', on_delete=models.CASCADE)
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 
@@ -84,6 +110,11 @@ class Item(models.Model):
         if not Question.objects.filter(item=self):
             raise AttributeError('Item exists without any question')
         return Question.objects.filter(item=self).order_by('order').first().order
+
+    def get_last_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
+        return Question.objects.filter(item=self).order_by('order').last().order
 
     def is_before(self, item: 'Item'):
         return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
@@ -110,7 +141,7 @@ class Question(models.Model):
         for key, val in content_map.items():
             if self.item.type in key:
                 return val
-        return None
+        raise ValueError('Item type out of range')
 
 
 class Answer(models.Model):
@@ -124,6 +155,12 @@ class Answer(models.Model):
     class Meta:
         db_table = 'answers'
 
+    def get_option_content(self):
+        return self.option.content if self.option else None
+
+    def get_content_type_value(self, content_type: str):
+        return self.get_option_content() if content_type == 'option' else getattr(self, content_type)
+
 
 class Interviewee(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
@@ -135,10 +172,24 @@ class Interviewee(models.Model):
         db_table = 'interviewees'
 
 
+# czy interviewees sa tworzeni na email sent - można zaznaczyć
 class SurveySent(models.Model):
-    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, models.DO_NOTHING)
-    interviewee_id = models.UUIDField()
+    # TODO: obviously change that
+    email = models.CharField(max_length=320, editable=False, blank=True, null=True)
+    id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
+
+    def save(self, *args, **kwargs):
+        self.id = hashlib.sha256((self.survey_id.hex + self.email).encode('utf-8')).hexdigest()
+
+        if self.survey.anonymous:
+            self.email = None
+        else:
+            # if not anonymous, automatically add interviewee to database if it does not exist
+            if not Interviewee.objects.filter(email=self.email).exists():
+                Interviewee.objects.create(email=self.email)
+
+        super().save(*args, **kwargs)
 
     class Meta:
         db_table = 'survey_sent'
@@ -159,6 +210,7 @@ class Submission(models.Model):
     submitted_at = models.DateTimeField(auto_now_add=True)
     survey = models.ForeignKey('Survey', models.CASCADE)
     interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
+    hash = models.ForeignKey('SurveySent', models.DO_NOTHING, blank=True, null=True)
 
     class Meta:
         db_table = 'submissions'
