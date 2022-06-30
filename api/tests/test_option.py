@@ -36,7 +36,7 @@ class OptionAPITest(APITestCase):
         )
 
     def test_can_update_option(self):
-        url = reverse('options-uuid', kwargs={'option_id': self.option.id})
+        url = reverse('option-detail', args=[self.option.id])
         response = self.client.patch(url, {'content': 'new content'})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

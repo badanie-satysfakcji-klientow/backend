@@ -36,7 +36,7 @@ class ItemAPITest(APITestCase):
         }
 
     def test_can_create_item(self):
-        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
+        url = reverse('item-list', args=[self.survey.id])
         response = self.client.post(url, self.item_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -48,7 +48,7 @@ class ItemAPITest(APITestCase):
             required=True,
             survey_id=self.survey.id,
         )
-        url = reverse('items-uuid', kwargs={'item_id': item.id})
+        url = reverse('item-detail', args=[self.survey.id, item.id])
         # TODO: Resolve that conflict
         response = self.client.patch(url, {'type': 'gridSingle', 'required': False})
 
@@ -62,14 +62,14 @@ class ItemAPITest(APITestCase):
             required=True,
             survey_id=self.survey.id,
         )
-        url = reverse('items-uuid', kwargs={'item_id': item.id})
+        url = reverse('item-detail', args=[self.survey.id, item.id])
         response = self.client.delete(url, {'id': item.id})
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Item.objects.count(), 0)
 
     def test_can_not_create_item_without_questions(self):
-        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
+        url = reverse('item-list', args=[self.survey.id])
         response = self.client.post(url, {'type': 'openShort', 'required': True, 'survey_id': self.survey.id})
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
@@ -77,7 +77,7 @@ class ItemAPITest(APITestCase):
         self.assertEqual(response.data[0], 'No questions given for item')
 
     def test_can_not_create_item_with_unknown_type(self):
-        url = reverse('survey-items', kwargs={'survey_id': self.survey.id})
+        url = reverse('item-list', args=[self.survey.id])
         response = self.client.post(url, {'type': 'something',
                                           'required': True,
                                           'survey_id': self.survey.id,

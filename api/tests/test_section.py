@@ -69,7 +69,7 @@ class SectionAPITest(APITestCase):
         }
 
     def test_can_create_section(self):
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, self.section_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -83,7 +83,7 @@ class SectionAPITest(APITestCase):
             description=lorem.sentence(),
         )
 
-        url = reverse('sections-uuid', kwargs={'survey_id': self.survey.id, 'section_id': section.id})
+        url = reverse('section-detail', args=[self.survey.id, section.id])
         new_title = lorem.words(5)
         new_description = lorem.sentence()
         response = self.client.patch(url, {
@@ -102,7 +102,7 @@ class SectionAPITest(APITestCase):
             title=lorem.words(5),
             description=lorem.sentence(),
         )
-        url = reverse('sections-uuid', kwargs={'survey_id': self.survey.id, 'section_id': section.id})
+        url = reverse('section-detail', args=[self.survey.id, section.id])
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -129,7 +129,7 @@ class SectionAPITest(APITestCase):
             description=lorem.sentence(),
         )
 
-        url = reverse('sections-uuid', kwargs={'survey_id': self.survey.id, 'section_id': section2.id})
+        url = reverse('section-detail', args=[self.survey.id, section2.id])
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -139,7 +139,7 @@ class SectionAPITest(APITestCase):
         self.assertEqual(Question.objects.get(id=self.item3_question.id).order, 2)
 
     def test_can_create_separate_sections(self):
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', args=[self.survey.id])
 
         # according to issue #74 we make 3 requests
         # same url
@@ -181,7 +181,7 @@ class SectionAPITest(APITestCase):
             survey_id=self.survey.id,
         )
 
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', args=[self.survey.id])
         response = self.client.post(url, {
             'start_item': no_question_item.id,
             'end_item': no_question_item.id,

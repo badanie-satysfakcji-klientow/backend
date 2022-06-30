@@ -31,7 +31,7 @@ class SurveySentAPITest(APITestCase):
     def test_can_get_sections_anonymously(self):
         survey_sent = SurveySent.objects.create(**self.survey_sent_data)
 
-        url = reverse('sections-anonymous', kwargs={'survey_hash': survey_sent.id})
+        url = reverse('sections-anonymous', args=[survey_sent.id])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

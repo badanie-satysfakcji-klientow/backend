@@ -35,7 +35,7 @@ class SubmissionAPITest(APITestCase):
         }
 
     def test_can_create_submission(self):
-        url = reverse('submit', kwargs={'survey_id': self.survey.id})
+        url = reverse('submit-list', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, self.submission_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

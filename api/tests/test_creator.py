@@ -17,7 +17,7 @@ class CreatorAPITest(APITestCase):
         }
 
     def test_can_create_creator(self):
-        url = reverse('creator')
+        url = reverse('creator-list')
         response = self.client.post(url, self.creator_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -26,21 +26,21 @@ class CreatorAPITest(APITestCase):
         self.assertEqual(Creator.objects.get(pk=response.data['id']).email, self.creator_data['email'])
 
     def test_can_update_creator(self):
-        url = reverse('creator-uuid', kwargs={'creator_id': self.creator.id})
+        url = reverse('creator-detail', args=[self.creator.id])
         response = self.client.patch(url, {'current_user': self.creator.id, 'password': 'new content'})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Creator.objects.get(id=self.creator.id).password, 'new content')
 
     def test_can_get_interviewee(self):
-        url = reverse('creator-uuid', kwargs={'creator_id': self.creator.id})
+        url = reverse('creator-detail', args=[self.creator.id])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.data['id'], str(self.creator.id))
 
     def test_can_delete_interviewee(self):
-        url = reverse('creator-uuid', kwargs={'creator_id': self.creator.id})
+        url = reverse('creator-detail', args=[self.creator.id])
         response = self.client.delete(url, {'current_user': self.creator.id})
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
