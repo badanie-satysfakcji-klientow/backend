@@ -9,6 +9,7 @@ from .serializers import SurveySerializer, SurveyInfoSerializer, ItemSerializer,
     AnswerQuestionCountSerializer, SurveyResultSerializer, SurveyResultInfoSerializer, \
     IntervieweeSerializer, IntervieweeUploadSerializer, SurveyResultFullSerializer, PreconditionSerializer, \
     CreatorSerializer
+
 from .models import Survey, Item, Question, Option, Answer, Submission, Section, Interviewee, Precondition, Creator, \
     SurveySent
 
@@ -16,11 +17,13 @@ import pandas as pd
 from api.utils import send_my_mass_mail, xlsx_question_charts_file, xlsx_survey_results, csv_interviewees_file
 # from api.utils import xlsx_survey_results2
 
+from .viewsets import CustomModelViewSet
+
 
 class SurveyViewSet(ModelViewSet):
     queryset = Survey.objects.prefetch_related('items')
     serializer_class = SurveySerializer
-    lookup_url_kwarg = 'survey_id'
+    lookup_url_kwarg = 'id'
 
     def retrieve(self, request, *args, **kwargs):
         try:
@@ -30,6 +33,7 @@ class SurveyViewSet(ModelViewSet):
         except AttributeError as e:
             return Response({'status': 'error', 'message': e.args})
 
+    # TODO: move that to a separate viewset on refine
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
     def retrieve_brief(self, request, *args, **kwargs):  # use prefetch_related
         surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])
@@ -44,10 +48,11 @@ class SurveyViewSet(ModelViewSet):
         return Response({'status': 'OK', 'survey': serializer.data}, status=status.HTTP_200_OK)
 
 
-class ItemViewSet(ModelViewSet):
+class ItemViewSet(CustomModelViewSet):
     queryset = Item.objects.all()
     serializer_class = ItemSerializer
-    lookup_url_kwarg = 'item_id'
+    lookup_url_kwarg = 'id'
+    methods = ['create', 'update', 'partial_update', 'destroy']
 
     # TODO: override get_serializer_context
 
@@ -82,8 +87,10 @@ class ItemViewSet(ModelViewSet):
         return Response(serializer.data, status=status.HTTP_200_OK)
 
 
-class AnswersCountViewSet(ModelViewSet):
+class AnswersCountViewSet(CustomModelViewSet):
     serializer_class = AnswerQuestionCountSerializer
+    methods = ['list']
+    lookup_url_kwarg = 'id'
 
     def get_queryset(self):
         submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
@@ -101,9 +108,9 @@ class AnswersCountViewSet(ModelViewSet):
         pass
 
 
-class SubmissionViewSet(ModelViewSet):
+class SubmissionViewSet(CustomModelViewSet):
     serializer_class = SubmissionSerializer
-
+    methods = ['create']
     # TODO: override get_serializer_context
 
     def create(self, request, *args, **kwargs):
@@ -118,8 +125,12 @@ class SubmissionViewSet(ModelViewSet):
         return Response({'status': 'success', 'submission_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['POST'])
-    def anonymous_create(self, request, *args, **kwargs):
+
+class AnonymousSubmissionViewSet(CustomModelViewSet):
+    serializer_class = SubmissionSerializer
+    methods = ['create']
+
+    def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
         serializer.context['survey_id'] = SurveySent.objects.get(id=kwargs['survey_hash']).survey_id
         serializer.is_valid(raise_exception=True)
@@ -128,10 +139,11 @@ class SubmissionViewSet(ModelViewSet):
                         status=status.HTTP_201_CREATED)
 
 
-class AnswerViewSet(ModelViewSet):
+class AnswerViewSet(CustomModelViewSet):
     queryset = Answer.objects.all()
     serializer_class = AnswerSerializer
-    lookup_url_kwarg = 'answer_id'
+    lookup_url_kwarg = 'id'
+    methods = ['create', 'update', 'partial_update', 'destroy']
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
@@ -144,7 +156,7 @@ class AnswerViewSet(ModelViewSet):
 
     def update(self, request, *args, **kwargs):
         partial = kwargs.pop('partial', False)
-        instance = Answer.objects.get(id=kwargs['answer_id'])
+        instance = Answer.objects.get(id=kwargs['id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         serializer.context['question_id'] = kwargs.get('question_id')
         serializer.is_valid(raise_exception=True)
@@ -154,14 +166,13 @@ class AnswerViewSet(ModelViewSet):
             # If 'prefetch_related' has been applied to a queryset, we need to
             # forcibly invalidate the prefetch cache on the instance.
             instance._prefetched_objects_cache = {}
-
         return Response(serializer.data)
 
 
-class SectionViewSet(ModelViewSet):
+class SectionViewSet(CustomModelViewSet):
     serializer_class = SectionSerializer
     queryset = Section.objects.all()
-    lookup_url_kwarg = 'section_id'
+    methods = ['list', 'create', 'update', 'partial_update', 'destroy']
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -185,8 +196,8 @@ class SectionViewSet(ModelViewSet):
         self.perform_update(serializer)
         return Response(serializer.data)
 
-    def anonymous_list(self, request, *args, **kwargs):
-        survey = SurveySent.objects.get(id=kwargs['survey_hash']).survey
+    def list(self, request, *args, **kwargs):
+        survey = SurveySent.objects.get(id=kwargs.get('survey_hash')).survey  # where survey_id = survey_hash
 
         # TODO: filter so override filter_queryset
         queryset = Section.objects.filter(start_item__in=Item.objects.filter(survey=survey).only('id'))
@@ -200,10 +211,11 @@ class SectionViewSet(ModelViewSet):
         return Response(serializer.data)
 
 
-class QuestionViewSet(ModelViewSet):
+class QuestionViewSet(CustomModelViewSet):
     queryset = Question.objects.all()
     serializer_class = QuestionSerializer
-    lookup_url_kwarg = 'question_id'
+    lookup_url_kwarg = 'id'
+    methods = ['update', 'partial_update', 'destroy']
 
     def destroy(self, request, *args, **kwargs):
         instance = self.get_object()
@@ -213,18 +225,18 @@ class QuestionViewSet(ModelViewSet):
         return Response({'status': 'deleted'}, status=status.HTTP_204_NO_CONTENT)
 
 
-class OptionViewSet(ModelViewSet):
+class OptionViewSet(CustomModelViewSet):
     queryset = Option.objects.all()
     serializer_class = OptionSerializer
-
-    lookup_url_kwarg = 'option_id'
+    lookup_url_kwarg = 'id'
+    methods = ['update', 'partial_update', 'destroy']
 
     def update(self, request, *args, **kwargs):
         """
         # update option by its id
         """
         partial = kwargs.pop('partial', False)
-        instance = Option.objects.get(id=kwargs['option_id'])
+        instance = Option.objects.get(id=kwargs['id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
             self.perform_update(serializer)
@@ -232,10 +244,11 @@ class OptionViewSet(ModelViewSet):
         return Response({'status': 'not updated, wrong parameters'}, status=status.HTTP_400_BAD_REQUEST)
 
 
-class SurveyResultViewSet(ModelViewSet):
+class SurveyResultViewSet(CustomModelViewSet):
     serializer_class = SurveyResultSerializer
     queryset = Survey.objects.all()
-    lookup_url_kwarg = 'survey_id'
+    lookup_url_kwarg = 'id'
+    methods = ['list', 'retrieve']
 
     def retrieve(self, request, *args, **kwargs):
         """
@@ -257,21 +270,24 @@ class SurveyResultViewSet(ModelViewSet):
                         status=status.HTTP_200_OK)
 
 
-class SurveyResultFullViewSet(SurveyResultViewSet):
+class SurveyResultFullViewSet(CustomModelViewSet):
     serializer_class = SurveyResultFullSerializer
+    methods = ['retrieve']
 
 
 class IntervieweeViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
     serializer_class = IntervieweeSerializer
-    lookup_url_kwarg = 'interviewee_id'
+    lookup_url_kwarg = 'id'
 
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
+    serializer_class = IntervieweeSerializer
+    # TODO: think of changing this to create
+    # methods = ['create']
 
-    @action(detail=False, methods=['POST'])
-    def send(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         """
         send a mail with link to survey
         eg. http://127.0.0.1:4200/survey/survey_uuid
@@ -310,18 +326,18 @@ class SendEmailViewSet(ModelViewSet):
         return Response({'survey_id': survey_id, 'status': 'sending process started'}, status=status.HTTP_200_OK)
 
 
-class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
+class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
-    lookup_url_kwarg = 'creator_id'
+    methods = ['create', 'list']
+    lookup_url_kwarg = 'id'
 
     @staticmethod
     def get_email_list(already_exists, new_interviewee_list):
         csv_interviewees = already_exists + new_interviewee_list
         return [interviewee.email for interviewee in csv_interviewees]
 
-    @action(detail=False, methods=['POST'])
-    def upload_csv(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         save = request.query_params.get('save')
         survey_id = request.query_params.get('send_survey')
 
@@ -381,23 +397,22 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
              'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
             status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['GET'])
-    def download_csv(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
         return csv_interviewees_file(queryset=Interviewee.objects.all())
         # TODO queryset=Interviewee.objects.filter(creator=Creator.objects.get(id=kwargs['creator_id']))
         # Interviewee model doesn't contain Creator
 
 
-# for Preconditions
-class PreconditionViewSet(ModelViewSet):
+class PreconditionViewSet(CustomModelViewSet):
     serializer_class = PreconditionSerializer
-    lookup_url_kwarg = 'precondition_id'
+    lookup_url_kwarg = 'id'
     queryset = Precondition.objects.all()
+    methods = ['list', 'create', 'update', 'partial_update', 'destroy']  # all except for retrieve
 
 
 class CreatorViewSet(ModelViewSet):
     serializer_class = CreatorSerializer
-    lookup_url_kwarg = 'creator_id'
+    lookup_url_kwarg = 'id'
     queryset = Creator.objects.all()
     hint = "Provide correct current_user id eg. " \
            "{'current_user': '8e813c93-37a7-429f-926c-0ac092b30c79'}"
@@ -415,8 +430,9 @@ class CreatorViewSet(ModelViewSet):
         return self.partial_update(request, *args, **kwargs)
 
 
-class QuestionResultRawViewSet(ModelViewSet):
-    lookup_url_kwarg = 'question_id'
+class QuestionResultRawViewSet(CustomModelViewSet):
+    lookup_url_kwarg = 'id'
+    methods = ['retrieve']
 
     def get_queryset(self):
         return Answer.objects.filter(question=Question.objects.get(id=self.kwargs['question_id']))
@@ -433,8 +449,9 @@ class QuestionResultRawViewSet(ModelViewSet):
         return xlsx_question_charts_file(queryset, question_val, answer_type)
 
 
-class SurveyResultRawViewSet(ModelViewSet):
-    lookup_url_kwarg = 'survey_id'
+class SurveyResultRawViewSet(CustomModelViewSet):
+    lookup_url_kwarg = 'id'
+    methods = ['retrieve']
 
     def get_queryset(self):
         items_query = Item.objects.prefetch_related('questions').filter(survey=self.kwargs['survey_id'])

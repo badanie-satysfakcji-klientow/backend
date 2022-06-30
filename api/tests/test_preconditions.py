@@ -82,21 +82,21 @@ class SectionAPITest(APITestCase):
         )
 
     def test_can_create_precondition(self):
-        url = reverse('preconditions')
+        url = reverse('precondition-list', args=[self.survey.id])
         response = self.client.post(url, self.item_precondition_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(Precondition.objects.count(), 2)  # 1 existing, 1 created
 
     def test_can_get_precondition(self):
-        url = reverse('preconditions-get', kwargs={'survey_id': self.survey.id})
+        url = reverse('precondition-list', args=[self.survey.id])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
 
     def test_can_update_precondition(self):
-        url = reverse('preconditions-uuid', kwargs={'precondition_id': self.item_precondition.id})
+        url = reverse('precondition-detail', args=[self.survey.id, self.item_precondition.id])
 
         response = self.client.patch(url, {'expected_option': self.item1_option2.id})
 
@@ -104,7 +104,7 @@ class SectionAPITest(APITestCase):
         self.assertEqual(Precondition.objects.get(id=self.item_precondition.id).expected_option, self.item1_option2)
 
     def test_can_delete_precondition(self):
-        url = reverse('preconditions-uuid', kwargs={'precondition_id': self.item_precondition.id})
+        url = reverse('precondition-detail', args=[self.survey.id, self.item_precondition.id])
 
         response = self.client.delete(url)
 

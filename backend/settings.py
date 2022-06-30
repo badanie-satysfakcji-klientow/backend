@@ -117,7 +117,7 @@ DATABASES = {
             'options': '-c search_path=public'
         },
         'TEST': {
-            'NAME': env.get_value('TEST_DATABASE_NAME', default='test-'+env.get_value('DATABASE_NAME')),
+            'NAME': env.get_value('TEST_DATABASE_NAME', default='testss-'+env.get_value('DATABASE_NAME')),
         }
     },
 }

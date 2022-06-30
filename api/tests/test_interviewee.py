@@ -20,7 +20,7 @@ class IntervieweeAPITest(APITestCase):
         }
 
     def test_can_create_interviewee(self):
-        url = reverse('interviewee')
+        url = reverse('interviewee-list')
         response = self.client.post(url, self.interviewee_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -29,14 +29,14 @@ class IntervieweeAPITest(APITestCase):
         self.assertEqual(Interviewee.objects.get(pk=response.data['id']).email, self.interviewee_data['email'])
 
     def test_can_update_interviewee(self):
-        url = reverse('interviewee-uuid', kwargs={'interviewee_id': self.interviewee.id})
+        url = reverse('interviewee-detail', kwargs={'id': self.interviewee.id})
         response = self.client.patch(url, {'first_name': 'new content'})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Interviewee.objects.get(id=self.interviewee.id).first_name, 'new content')
 
     def test_can_get_interviewee(self):
-        url = reverse('interviewee-uuid', kwargs={'interviewee_id': self.interviewee.id})
+        url = reverse('interviewee-detail', kwargs={'id': self.interviewee.id})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -46,14 +46,14 @@ class IntervieweeAPITest(APITestCase):
         for i in range(6):
             Interviewee.objects.create(**self.interviewee_data)
 
-        url = reverse('interviewee')
+        url = reverse('interviewee-list')
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 7)
 
     def test_can_delete_interviewee(self):
-        url = reverse('interviewee-uuid', kwargs={'interviewee_id': self.interviewee.id})
+        url = reverse('interviewee-detail', kwargs={'id': self.interviewee.id})
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)

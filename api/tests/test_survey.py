@@ -32,7 +32,7 @@ class GetSurveyAPITest(APITestCase):
 
     def test_can_get_survey(self):
         survey = Survey.objects.create(**self.survey_data)
-        url = reverse('surveys-uuid', kwargs={'survey_id': survey.id})
+        url = reverse('survey-detail', kwargs={'id': survey.id})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -61,7 +61,7 @@ class DeleteSurveyAPITest(APITestCase):
     def test_can_delete_survey(self):
         survey = Survey.objects.create(**self.survey_data)
 
-        url = reverse('surveys-uuid', kwargs={'survey_id': survey.id})
+        url = reverse('survey-detail', kwargs={'id': survey.id})
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
@@ -88,7 +88,7 @@ class CreateSurveyAPITest(APITestCase):
         }
 
     def test_can_create_survey(self):
-        url = reverse('surveys')
+        url = reverse('survey-list')
         response = self.client.post(url, self.survey_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -121,13 +121,13 @@ class UpdateSurveyAPITest(APITestCase):
         )
 
     def test_can_update_survey(self):
-        url = reverse('surveys-uuid', kwargs={'survey_id': self.survey.id})
+        url = reverse('survey-detail', kwargs={'id': self.survey.id})
         response = self.client.patch(url, {'title': 'New title'})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(Survey.objects.get(id=self.survey.id).title, 'New title')
 
     def test_can_pause_survey(self):
-        url = reverse('surveys-uuid', kwargs={'survey_id': self.survey.id})
+        url = reverse('survey-detail', kwargs={'id': self.survey.id})
         response = self.client.patch(url, {'paused': True})
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertTrue(Survey.objects.get(id=self.survey.id).paused)
@@ -162,11 +162,11 @@ class ShowSurveyBriefInfoAPITest(APITestCase):
             Survey.objects.create(**survey_data)
 
     def test_can_get_survey_brief_info(self):
-        url = reverse('surveys-brief-info', kwargs={'creator_id': self.creator.id})
+        url = reverse('surveys-brief-list', kwargs={'creator_id': self.creator.id})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['surveys']), 5)
+        self.assertEqual(len(response.data), 5)
 
 
 class SendSurveyAPITest(APITestCase):

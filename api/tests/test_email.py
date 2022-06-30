@@ -42,7 +42,7 @@ class EmailAPITest(APITestCase):
                            f'{lorem.words(1)}@{lorem.words(1)}.{lorem.words(1)}']
 
     def test_can_send_survey_selected(self):
-        url = f'{reverse("send-manually", kwargs={"survey_id": self.survey.id})}?selected=true'
+        url = f'{reverse("send-list", kwargs={"survey_id": self.survey.id})}?selected=true'
         response = self.client.post(url, {'interviewees': self.interviewee_ids})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -50,7 +50,7 @@ class EmailAPITest(APITestCase):
         self.assertEqual(response.json()['status'], 'sending process started')
 
     def test_can_send_survey_email_list(self):
-        url = reverse('send-manually', kwargs={'survey_id': self.survey.id})
+        url = reverse('send-list', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, {'interviewees': self.email_list})
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)

@@ -79,7 +79,7 @@ class AnswerAPITest(APITestCase):
         }
 
     def test_can_create_answer(self):
-        url = reverse('questions-answer', kwargs={'question_id': self.question.id})
+        url = reverse('answer-list', args=[self.question.id])
         # TODO: Resolve that conflict
         response = self.client.post(url, self.answer_data)
 
@@ -88,7 +88,8 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(Answer.objects.count(), 3)
 
     def test_can_update_answer(self):
-        url = reverse('answer-uuid', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        url = reverse('answer-detail', args=[self.question.id, self.answer.id])
+
         response = self.client.patch(url, {
             'submission': self.submission.id,
             'content_character': 'new content',
@@ -99,14 +100,14 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(Answer.objects.get(id=self.answer.id).content_character, 'new content')
 
     def test_can_delete_answer(self):
-        url = reverse('answer-uuid', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        url = reverse('answer-detail', kwargs={'question_id': self.question.id, 'id': self.answer.id})
         response = self.client.delete(url)
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Answer.objects.count(), 1)
 
     def test_can_get_answers_count(self):
-        url = reverse('submissions-get-count', kwargs={'survey_id': self.survey.id})
+        url = reverse('submission-list', kwargs={'survey_id': self.survey.id})
 
         for i in range(0, 10):
             Answer.objects.create(

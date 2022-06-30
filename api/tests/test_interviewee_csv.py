@@ -39,8 +39,10 @@ class CSVIntervieweeAPITest(APITestCase):
             farewell=lorem.words(2)
         )
 
+        self.rev_csv_url = reverse('interviewees-csv-list', args=[self.creator.id])
+
     def test_export_interviewees(self):
-        url = reverse('interviewee-csv', kwargs={'creator_id': self.creator.id})
+        url = reverse('interviewees-csv-list', args=[self.creator.id])
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -48,35 +50,41 @@ class CSVIntervieweeAPITest(APITestCase):
         self.assertTrue(response['Content-Disposition'].endswith('.csv"'))
 
     def test_can_import_save_interviewees(self):
-        rev = reverse("interviewee-csv", kwargs={"creator_id": self.creator.id})
+        rev = reverse('interviewees-csv-list', kwargs={'creator_id': self.creator.id})
         url = f'{rev}?save=true'
-        file = BytesIO(self.client.get(reverse('interviewee-csv', kwargs={'creator_id': self.creator.id})).content)
+        file = BytesIO(self.client.get(reverse('interviewees-csv-list',
+                                               kwargs={'creator_id': self.creator.id})).content)
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json()['status'], 'respondents saved')
 
     def test_can_import_send_interviewees(self):
-        rev = reverse("interviewee-csv", kwargs={"creator_id": self.creator.id})
+        rev = reverse('interviewees-csv-list', kwargs={'creator_id': self.creator.id})
         url = f'{rev}?send_survey={self.survey.id}'
-        file = BytesIO(self.client.get(reverse('interviewee-csv', kwargs={'creator_id': self.creator.id})).content)
+        file = BytesIO(self.client.get(reverse('interviewees-csv-list',
+                                               kwargs={'creator_id': self.creator.id})).content)
+
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(response.json()['status'], 'sending process started')
 
     def test_can_import_save_send_interviewees(self):
-        rev = reverse("interviewee-csv", kwargs={"creator_id": self.creator.id})
+        rev = reverse('interviewees-csv-list', kwargs={'creator_id': self.creator.id})
         url = f'{rev}?save=true&send_survey={self.survey.id}'
-        file = BytesIO(self.client.get(reverse('interviewee-csv', kwargs={'creator_id': self.creator.id})).content)
+        file = BytesIO(self.client.get(reverse('interviewees-csv-list',
+                                               kwargs={'creator_id': self.creator.id})).content)
+
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
         self.assertEqual(response.json()['status'], 'respondents saved, sending process started')
 
     def test_can_do_nothing_interviewees(self):
-        url = reverse("interviewee-csv", kwargs={"creator_id": self.creator.id})
-        file = BytesIO(self.client.get(reverse('interviewee-csv', kwargs={"creator_id": self.creator.id})).content)
+        url = reverse('interviewees-csv-list', kwargs={'creator_id': self.creator.id})
+        file = BytesIO(self.client.get(reverse('interviewees-csv-list',
+                                               kwargs={"creator_id": self.creator.id})).content)
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
