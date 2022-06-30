@@ -1,147 +1,76 @@
-# This is an auto-generated Django model module.
-# You'll have to do the following manually to clean this up:
-#   * Rearrange models' order
-#   * Make sure each model has one field with primary_key=True
-#   * Make sure each ForeignKey and OneToOneField has `on_delete` set to the desired behavior
-#   * Remove `managed = False` lines if you wish to allow Django to create, modify, and delete the table
-# Feel free to rename the models, but don't rename db_table values or field names.
 from django.db import models
+from django.db.models import QuerySet, F
+import uuid
+import hashlib  # for hashing sent emails
 
 
-class Answers(models.Model):
-    id = models.UUIDField(primary_key=True)
-    question = models.ForeignKey('Questions', models.DO_NOTHING)
-    content_numeric = models.IntegerField(blank=True, null=True)
-    content_character = models.TextField(blank=True, null=True)
-    option = models.ForeignKey('Options', models.DO_NOTHING, blank=True, null=True)
-    submission = models.ForeignKey('SurveySubmissions', models.DO_NOTHING)
+class Option(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    item = models.ForeignKey('Item', related_name='options', on_delete=models.CASCADE)
+    content = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
-        db_table = 'answers'
+        db_table = 'options'
 
 
-class Creators(models.Model):
-    id = models.UUIDField(primary_key=True)
-    email = models.CharField(max_length=320)
+class Section(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
+    start_item = models.ForeignKey('Item', related_name='start_item', on_delete=models.CASCADE)
+    end_item = models.ForeignKey('Item', related_name='end_item', on_delete=models.CASCADE)
+
+    class Meta:
+        db_table = 'sections'
+
+    def get_items(self) -> QuerySet:
+        start_item_order = self.start_item.get_first_question_order()
+        end_item_order = self.end_item.get_first_question_order()
+
+        item_ids = Question.objects.filter(order__gte=start_item_order, order__lte=end_item_order)\
+            .values_list('item_id', flat=True)
+        return Item.objects.filter(id__in=item_ids)
+
+    def get_items_in_order(self):
+        items = Item.objects.prefetch_related('questions').filter(section=self)
+        return sorted(items, key=lambda x: x.get_first_question_order())
+
+    def get_start_question_order(self):
+        return self.start_item.get_first_question_order()
+
+    def get_survey_id(self):
+        return self.start_item.survey_id
+
+    # override default delete because we're storing only start and end item ids, and Item does not point to Section
+    def delete(self, using=None, keep_parents=False):
+        # update next questions' order in following manner: - (end_item_order - start_item_order + 1)
+        # last question order must be obtained here because we'll be performing operations on it
+        last_question_order = self.end_item.get_last_question_order()
+        diff = last_question_order - self.start_item.get_first_question_order() + 1
+
+        items = self.get_items()
+        items.delete()
+        Question.objects.filter(order__gt=last_question_order).update(order=F('order') - diff)
+        super().delete(using, keep_parents)
+
+
+class Creator(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    interviewees = models.ManyToManyField('Interviewee')
+    email = models.EmailField(max_length=320, unique=True)
     password = models.CharField(max_length=255)
     phone = models.CharField(max_length=18, blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'creators'
 
 
-class CreatorsInterviewees(models.Model):
-    creator = models.ForeignKey(Creators, models.DO_NOTHING)
-    interviewee = models.ForeignKey('Interviewees', models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'creators_interviewees'
-
-
-class Interviewees(models.Model):
-    id = models.UUIDField(primary_key=True)
-    email = models.CharField(max_length=320)
-    first_name = models.CharField(max_length=63, blank=True, null=True)
-    last_name = models.CharField(max_length=63, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'interviewees'
-
-
-class Items(models.Model):
-    id = models.UUIDField(primary_key=True)
-    survey_id = models.UUIDField()
-    section = models.ForeignKey('Sections', models.DO_NOTHING, blank=True, null=True)
-    header = models.CharField(max_length=255, blank=True, null=True)
-    type = models.SmallIntegerField(blank=True, null=True)
-    required = models.BooleanField()
-
-    class Meta:
-        managed = False
-        db_table = 'items'
-
-
-class Options(models.Model):
-    id = models.UUIDField(primary_key=True)
-    content = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'options'
-
-
-class OptionsItems(models.Model):
-    option = models.ForeignKey(Options, models.DO_NOTHING)
-    item = models.ForeignKey(Items, models.DO_NOTHING)
-
-    class Meta:
-        managed = False
-        db_table = 'options_items'
-
-
-# class Preconditions(models.Model):
-#     id = models.UUIDField(primary_key=True)
-#     item = models.ForeignKey(Items, models.DO_NOTHING)
-#     expected_option = models.ForeignKey(Options, models.DO_NOTHING)
-#     next_item = models.ForeignKey(Items, models.DO_NOTHING)
-#
-#     class Meta:
-#         managed = False
-#         db_table = 'preconditions'
-
-
-class Questions(models.Model):
-    id = models.UUIDField(primary_key=True)
-    order = models.IntegerField()
-    item = models.ForeignKey(Items, models.DO_NOTHING)
-    value = models.TextField()
-
-    class Meta:
-        managed = False
-        db_table = 'questions'
-
-
-class Sections(models.Model):
-    id = models.UUIDField(primary_key=True)
-    title = models.CharField(max_length=255, blank=True, null=True)
-    description = models.TextField(blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'sections'
-
-
-class SurveySent(models.Model):
-    id = models.UUIDField(primary_key=True)
-    survey = models.ForeignKey('Surveys', models.DO_NOTHING)
-    interviewee_id = models.UUIDField()
-
-    class Meta:
-        managed = False
-        db_table = 'survey_sent'
-
-
-class SurveySubmissions(models.Model):
-    id = models.UUIDField(primary_key=True)
-    submitted_at = models.DateTimeField()
-    survey = models.ForeignKey('Surveys', models.DO_NOTHING)
-    interviewee = models.ForeignKey(Interviewees, models.DO_NOTHING, blank=True, null=True)
-
-    class Meta:
-        managed = False
-        db_table = 'survey_submissions'
-
-
-class Surveys(models.Model):
-    id = models.UUIDField(primary_key=True)
+class Survey(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
-    creator = models.ForeignKey(Creators, models.DO_NOTHING)
-    created_at = models.DateTimeField()
+    creator_id = models.ForeignKey(Creator, models.CASCADE, db_column='creator_id')
+    created_at = models.DateTimeField(auto_now_add=True, blank=True, null=True)
     starts_at = models.DateTimeField(blank=True, null=True)
     expires_at = models.DateTimeField(blank=True, null=True)
     paused = models.BooleanField()
@@ -150,14 +79,139 @@ class Surveys(models.Model):
     farewell = models.TextField(blank=True, null=True)
 
     class Meta:
-        managed = False
         db_table = 'surveys'
 
+    def get_sections_in_order(self):
+        items = Item.objects.prefetch_related('questions', 'options').filter(survey=self).values_list('id')
+        sections = Section.objects.select_related('start_item', 'end_item').filter(start_item_id__in=items).order_by()
+        return sorted(sections, key=lambda x: x.get_start_question_order())
 
-class SurveysItems(models.Model):
-    survey = models.ForeignKey(Surveys, models.DO_NOTHING)
-    item = models.ForeignKey(Items, models.DO_NOTHING)
+    def get_items_in_order(self):
+        items = Item.objects.prefetch_related('questions', 'options').filter(survey=self)
+        return sorted(items, key=lambda x: x.get_first_question_order())
+
+    def get_items(self):
+        return Item.objects.filter(survey=self)
+
+
+class Item(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE)
+
+    # TODO: that should be added
+    #   section = models.ForeignKey(Section, related_name='section-items', on_delete=models.CASCADE)
+    type = models.SmallIntegerField(blank=True, null=True)
+    required = models.BooleanField()
 
     class Meta:
-        managed = False
-        db_table = 'surveys_items'
+        db_table = 'items'
+
+    def get_first_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
+        return Question.objects.filter(item=self).order_by('order').first().order
+
+    def get_last_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
+        return Question.objects.filter(item=self).order_by('order').last().order
+
+    def is_before(self, item: 'Item'):
+        return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id
+
+
+class Question(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    order = models.IntegerField()
+    item = models.ForeignKey(Item, related_name='questions', on_delete=models.CASCADE)
+    value = models.TextField()
+
+    class Meta:
+        db_table = 'questions'
+
+    def get_item_type(self):
+        return self.item.type
+
+    def get_answer_content_type(self):
+        content_map = {
+            (1, 2, 3, 10, 11): 'option',
+            (7, 8): 'content_character',
+            (4, 5, 6, 9): 'content_numeric'
+        }
+        for key, val in content_map.items():
+            if self.item.type in key:
+                return val
+        raise ValueError('Item type out of range')
+
+
+class Answer(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    question = models.ForeignKey(Question, models.CASCADE)
+    content_numeric = models.IntegerField(blank=True, null=True)
+    content_character = models.TextField(blank=True, null=True)
+    option = models.ForeignKey(Option, on_delete=models.DO_NOTHING, blank=True, null=True)
+    submission = models.ForeignKey('Submission', models.CASCADE)
+
+    class Meta:
+        db_table = 'answers'
+
+    def get_option_content(self):
+        return self.option.content if self.option else None
+
+    def get_content_type_value(self, content_type: str):
+        return self.get_option_content() if content_type == 'option' else getattr(self, content_type)
+
+
+class Interviewee(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    email = models.CharField(max_length=320)
+    first_name = models.CharField(max_length=63, blank=True, null=True)
+    last_name = models.CharField(max_length=63, blank=True, null=True)
+
+    class Meta:
+        db_table = 'interviewees'
+
+
+# czy interviewees sa tworzeni na email sent - można zaznaczyć
+class SurveySent(models.Model):
+    id = models.CharField(max_length=64, primary_key=True, editable=False)  # hash
+    survey = models.ForeignKey(Survey, models.DO_NOTHING)
+    # TODO: obviously change that
+    email = models.CharField(max_length=320, editable=False, blank=True, null=True)
+    sent_at = models.DateTimeField(auto_now_add=True)
+
+    def save(self, *args, **kwargs):
+        self.id = hashlib.sha256((self.survey_id.hex + self.email).encode('utf-8')).hexdigest()
+
+        if self.survey.anonymous:
+            self.email = None
+        else:
+            # if not anonymous, automatically add interviewee to database if it does not exist
+            if not Interviewee.objects.filter(email=self.email).exists():
+                Interviewee.objects.create(email=self.email)
+
+        super().save(*args, **kwargs)
+
+    class Meta:
+        db_table = 'survey_sent'
+
+
+class Precondition(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    item = models.ForeignKey('Item', models.CASCADE, related_name='preconditions')
+    expected_option = models.ForeignKey(Option, models.DO_NOTHING)
+    next_item = models.ForeignKey('Item', models.DO_NOTHING, related_name='preconditions_next')
+
+    class Meta:
+        db_table = 'preconditions'
+
+
+class Submission(models.Model):
+    id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
+    submitted_at = models.DateTimeField(auto_now_add=True)
+    survey = models.ForeignKey('Survey', models.CASCADE)
+    interviewee = models.ForeignKey('Interviewee', models.DO_NOTHING, blank=True, null=True)
+    hash = models.ForeignKey('SurveySent', models.DO_NOTHING, blank=True, null=True)
+
+    class Meta:
+        db_table = 'submissions'
