@@ -1,4 +1,5 @@
 from django.db import models
+from django.db.models import QuerySet, F
 import uuid
 import hashlib  # for hashing sent emails
 
@@ -22,6 +23,14 @@ class Section(models.Model):
     class Meta:
         db_table = 'sections'
 
+    def get_items(self) -> QuerySet:
+        start_item_order = self.start_item.get_first_question_order()
+        end_item_order = self.end_item.get_first_question_order()
+
+        item_ids = Question.objects.filter(order__gte=start_item_order, order__lte=end_item_order)\
+            .values_list('item_id', flat=True)
+        return Item.objects.filter(id__in=item_ids)
+
     def get_items_in_order(self):
         items = Item.objects.prefetch_related('questions').filter(section=self)
         return sorted(items, key=lambda x: x.get_first_question_order())
@@ -31,6 +40,18 @@ class Section(models.Model):
 
     def get_survey_id(self):
         return self.start_item.survey_id
+
+    # override default delete because we're storing only start and end item ids, and Item does not point to Section
+    def delete(self, using=None, keep_parents=False):
+        # update next questions' order in following manner: - (end_item_order - start_item_order + 1)
+        # last question order must be obtained here because we'll be performing operations on it
+        last_question_order = self.end_item.get_last_question_order()
+        diff = last_question_order - self.start_item.get_first_question_order() + 1
+
+        items = self.get_items()
+        items.delete()
+        Question.objects.filter(order__gt=last_question_order).update(order=F('order') - diff)
+        super().delete(using, keep_parents)
 
 
 class Creator(models.Model):
@@ -76,6 +97,9 @@ class Survey(models.Model):
 class Item(models.Model):
     id = models.UUIDField(primary_key=True, editable=False, default=uuid.uuid4)
     survey = models.ForeignKey(Survey, related_name='items', on_delete=models.CASCADE)
+
+    # TODO: that should be added
+    #   section = models.ForeignKey(Section, related_name='section-items', on_delete=models.CASCADE)
     type = models.SmallIntegerField(blank=True, null=True)
     required = models.BooleanField()
 
@@ -86,6 +110,11 @@ class Item(models.Model):
         if not Question.objects.filter(item=self):
             raise AttributeError('Item exists without any question')
         return Question.objects.filter(item=self).order_by('order').first().order
+
+    def get_last_question_order(self):
+        if not Question.objects.filter(item=self):
+            raise AttributeError('Item exists without any question')
+        return Question.objects.filter(item=self).order_by('order').last().order
 
     def is_before(self, item: 'Item'):
         return Question.objects.filter(item__in=[self, item]).order_by('order').first().item_id == self.id

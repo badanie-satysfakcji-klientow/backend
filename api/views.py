@@ -160,6 +160,7 @@ class AnswerViewSet(ModelViewSet):
 class SectionViewSet(ModelViewSet):
     serializer_class = SectionSerializer
     queryset = Section.objects.all()
+    lookup_url_kwarg = 'section_id'
 
     def create(self, request, *args, **kwargs):
         serializer = self.serializer_class(data=request.data)
@@ -173,6 +174,15 @@ class SectionViewSet(ModelViewSet):
         return Response({'status': 'created section',
                          'section_id': serializer.data.get('id')},
                         status=status.HTTP_201_CREATED)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop('partial', False)
+        instance = self.get_object()
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.context['survey_id'] = kwargs.get('survey_id')
+        serializer.is_valid(raise_exception=True)
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
     def anonymous_list(self, request, *args, **kwargs):
         survey = SurveySent.objects.get(id=kwargs['survey_hash']).survey

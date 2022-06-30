@@ -390,6 +390,11 @@ class SectionSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         survey_id = self.context['survey_id']
 
+        if not hasattr(attrs, 'start_item') and self.partial:
+            attrs['start_item'] = Section.objects.get(id=self.instance.id).start_item
+        if not hasattr(attrs, 'end_item') and self.partial:
+            attrs['end_item'] = Section.objects.get(id=self.instance.id).end_item
+
         if not Item.objects.filter(survey_id=survey_id, id=attrs['start_item'].id).exists():
             raise serializers.ValidationError('Start item not found')
         if not Item.objects.filter(survey_id=survey_id, id=attrs['end_item'].id).exists():
@@ -416,15 +421,11 @@ class SectionSerializer(serializers.ModelSerializer):
         for section in sections:
             section.start_item_order = Question.objects.get(item_id=section.start_item_id).order
             section.end_item_order = Question.objects.get(item_id=section.end_item_id).order
-            if section.start_item_order <= start_item_order <= section.end_item_order or \
-                    section.start_item_order <= end_item_order <= section.end_item_order:
+            if section.start_item_order < start_item_order <= section.end_item_order or \
+                    section.start_item_order <= end_item_order < section.end_item_order:
                 raise serializers.ValidationError('Sections overlap')
 
         return attrs
-
-    # TODO: section update
-    # def update(self, instance, validated_data):
-    #     pass
 
 
 class PreconditionSerializer(serializers.ModelSerializer):
