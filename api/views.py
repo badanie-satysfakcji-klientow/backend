@@ -419,7 +419,6 @@ class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db 
         return csv_interviewees_file(queryset=Creator.objects.get(id=kwargs['creator_id']).interviewees.get_queryset())
 
 
-
 class PreconditionViewSet(CustomModelViewSet):
     serializer_class = PreconditionSerializer
     lookup_url_kwarg = 'id'
