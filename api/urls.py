@@ -34,7 +34,7 @@ creator_nested_router = routers.NestedSimpleRouter(
     lookup='creator'
 )
 creator_nested_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
-creator_nested_router.register('surveys', SurveyViewSet, basename='surveys-brief')
+# creator_nested_router.register('surveys', SurveyViewSet, basename='surveys-brief')
 
 survey_nested_router = routers.NestedSimpleRouter(
     survey_router,
@@ -83,6 +83,9 @@ urlpatterns += [
     path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
     path('api/surveys/<uuid:survey_id>/results/raw',
          SurveyResultRawViewSet.as_view({'get': 'retrieve'}), name='results-raw'),
+
+    path('api/creators/<uuid:creator_id>/surveys',
+         SurveyViewSet.as_view({'get': 'retrieve_brief'}), name='surveys-brief-list'),
 ]
 
 # tokenized_urls (anonymous survey), TODO: replace surveys-h with surveys in the future
