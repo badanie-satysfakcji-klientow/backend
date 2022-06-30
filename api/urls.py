@@ -9,9 +9,6 @@ from .views import ItemViewSet, SurveyViewSet, AnswerViewSet, SubmissionViewSet,
 survey_router = routers.SimpleRouter(trailing_slash=False)
 survey_router.register(r'surveys', SurveyViewSet)
 
-survey_router = routers.SimpleRouter(trailing_slash=False)
-survey_router.register(r'surveys', SurveyViewSet)
-
 interviewee_router = routers.SimpleRouter(trailing_slash=False)
 interviewee_router.register(r'interviewees', IntervieweeViewSet)
 
@@ -28,6 +25,13 @@ answer_router = routers.NestedSimpleRouter(
 )
 answer_router.register(r'answers', AnswerViewSet)
 
+interviewee_csv_router = routers.NestedSimpleRouter(
+    creator_router,
+    r'creators',
+    lookup='creator'
+)
+interviewee_csv_router.register(r'intervieweescsv', CSVIntervieweesViewSet)
+
 items_router = routers.NestedSimpleRouter(
     survey_router,
     r'surveys',
@@ -43,12 +47,12 @@ precondition_router = routers.NestedSimpleRouter(
 precondition_router.register(r'preconditions', PreconditionViewSet)
 
 # uncomment when creator CRUD added
-creator_nested_router = routers.NestedSimpleRouter(
-    creator_router,
-    r'creators',
-    lookup='creator'
-)
-creator_nested_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
+# creator_nested_router = routers.NestedSimpleRouter(
+#     creator_router,
+#     r'creators',
+#     lookup='creator'
+# )
+# creator_nested_router.register(r'interviewees-csv', CSVIntervieweesViewSet, basename='interviewees-csv')
 
 # routed
 urlpatterns = [
@@ -67,7 +71,7 @@ urlpatterns = [
     # creators
     path('api/', include(creator_router.urls)),
     # interviewees csv
-    path('api/', include(interviewee_csv_router.urls)),  # TODO: <- failing some tests - resolve
+    path('api/', include(interviewee_csv_router.urls)),
 ]
 
 # non routed
@@ -107,6 +111,10 @@ urlpatterns += [
     # path('api/interviewees/csv',
     #      CSVIntervieweesViewSet.as_view({'get': 'download_csv', 'post': 'upload_csv'}),
     #      name='interviewee-csv'),
+
+
+    # path('api/creators/<uuid:creator_id>/interviewees-csv',
+    #      CSVIntervieweesViewSet.as_view({'post': 'upload_csv', 'get': 'download_csv'}), name='interviewee-csv'),
 
     # uncomment and move to previous urlpatterns when creator CRUD added
     # path('api/', include(creator_router.urls)),

@@ -301,19 +301,18 @@ class SendEmailViewSet(ModelViewSet):
         return Response({'survey_id': survey_id, 'status': 'sending process started'}, status=status.HTTP_200_OK)
 
 
-class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
+class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db and send, 3. send without add
     serializer_class = IntervieweeUploadSerializer
     queryset = Interviewee.objects.all()
+    methods = ['create', 'list']
+    lookup_url_kwarg = 'id'
 
     @staticmethod
     def get_email_list(already_exists, new_interviewee_list):
         csv_interviewees = already_exists + new_interviewee_list
         return [interviewee.email for interviewee in csv_interviewees]
 
-    # TODO: think of changing this to create & retrieve
-
-    @action(detail=False, methods=['POST'])
-    def upload_csv(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         save = request.query_params.get('save')
         survey_id = request.query_params.get('send_survey')
 
@@ -373,8 +372,7 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
              'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
             status=status.HTTP_201_CREATED)
 
-    @action(detail=False, methods=['GET'])
-    def download_csv(self, request, *args, **kwargs):
+    def list(self, request, *args, **kwargs):
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = f'attachment; filename="interviewees{datetime.datetime.now()}.csv"'
         response.write(u'\ufeff'.encode('utf8'))
