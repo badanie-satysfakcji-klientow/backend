@@ -182,6 +182,7 @@ class SectionViewSet(ModelViewSet):
         serializer.context['survey_id'] = kwargs.get('survey_id')
         serializer.is_valid(raise_exception=True)
         self.perform_update(serializer)
+        return Response(serializer.data)
 
     def anonymous_list(self, request, *args, **kwargs):
         survey = SurveySent.objects.get(id=kwargs['survey_hash']).survey
@@ -195,6 +196,7 @@ class SectionViewSet(ModelViewSet):
             return self.get_paginated_response(serializer.data)
 
         serializer = self.get_serializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class QuestionViewSet(ModelViewSet):
