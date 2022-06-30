@@ -50,6 +50,16 @@ class SectionAPITest(APITestCase):
             value=lorem.words(3),
             item_id=self.survey_item2.id,
         )
+        self.survey_item3 = Item.objects.create(
+            type=2,
+            required=True,
+            survey_id=self.survey.id,
+        )
+        self.item3_question = Question.objects.create(
+            order=3,
+            value=lorem.words(3),
+            item_id=self.survey_item3.id,
+        )
 
         self.section_data = {
             'start_item': self.survey_item1.id,
@@ -78,3 +88,57 @@ class SectionAPITest(APITestCase):
     #
     #     self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
     #     self.assertEqual(Section.objects.count(), 0)
+
+    def test_can_create_separate_sections(self):
+        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+
+        # according to issue #74 we make 3 requests
+        # same url
+        response = self.client.post(url, {
+            'start_item': self.survey_item1.id,
+            'end_item': self.survey_item1.id,
+            'title': lorem.words(5),
+            'description': lorem.sentence(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Section.objects.count(), 1)
+
+        response = self.client.post(url, {
+            'start_item': self.survey_item2.id,
+            'end_item': self.survey_item2.id,
+            'title': lorem.words(5),
+            'description': lorem.sentence(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Section.objects.count(), 2)
+
+        response = self.client.post(url, {
+            'start_item': self.survey_item3.id,
+            'end_item': self.survey_item3.id,
+            'title': lorem.words(5),
+            'description': lorem.sentence(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(Section.objects.count(), 3)
+
+    def test_can_not_create_section_without_question(self):
+        # create item without question
+        no_question_item = Item.objects.create(
+            type=1,
+            required=True,
+            survey_id=self.survey.id,
+        )
+
+        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        response = self.client.post(url, {
+            'start_item': no_question_item.id,
+            'end_item': no_question_item.id,
+            'title': lorem.words(5),
+            'description': lorem.sentence(),
+        })
+
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(Section.objects.count(), 0)

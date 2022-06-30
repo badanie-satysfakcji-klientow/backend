@@ -9,7 +9,7 @@ https://docs.djangoproject.com/en/4.0/topics/settings/
 For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
-
+import sys
 from pathlib import Path
 import environ
 
@@ -48,12 +48,26 @@ INSTALLED_APPS = [
 REST_FRAMEWORK = {
     # testing setup
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
+    'DEFAULT_THROTTLE_CLASSES': [
+        'rest_framework.throttling.AnonRateThrottle',
+        'rest_framework.throttling.UserRateThrottle'
+    ],
+    'DEFAULT_THROTTLE_RATES': {
+        'anon': '20/minute',
+        'user': '50/minute',
+    }
 }
+
+TESTING = len(sys.argv) > 1 and sys.argv[1] == 'test'
+
+# remove rate limit while testing
+if TESTING:
+    del REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']
 
 # CORS - all domains
 CORS_ORIGIN_ALLOW_ALL = False
 CORS_ORIGIN_WHITELIST = (
-       'http://localhost:4200',
+    'http://localhost:4200',
 )
 
 MIDDLEWARE = [
@@ -103,7 +117,7 @@ DATABASES = {
             'options': '-c search_path=public'
         },
         'TEST': {
-            'NAME': 'test-badanie-satysfakcji-klientow',
+            'NAME': 'testxysdfz-badanie-satysfakcji-klientow',
         }
     },
 }
@@ -126,7 +140,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/4.0/topics/i18n/
 
@@ -138,7 +151,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/4.0/howto/static-files/
 
@@ -149,7 +161,6 @@ STATIC_URL = 'static/'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 # Email config
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 EMAIL_HOST = env('EMAIL_HOST')
@@ -159,4 +170,7 @@ EMAIL_HOST_PASSWORD = env('EMAIL_HOST_PASSWORD')
 DEFAULT_FROM_EMAIL = env('DEFAULT_FROM_EMAIL')
 
 # Link / domain config
-DOMAIN_NAME = env('DOMAIN_NAME')
+if DEBUG:
+    DOMAIN_NAME = env('DOMAIN_NAME')
+else:
+    DOMAIN_NAME = env('LOCALHOST_DOMAIN_NAME')
