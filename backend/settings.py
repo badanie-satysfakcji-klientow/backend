@@ -10,6 +10,7 @@ For the full list of settings and their values, see
 https://docs.djangoproject.com/en/4.0/ref/settings/
 """
 import sys
+import uuid
 from pathlib import Path
 import environ
 
@@ -117,7 +118,7 @@ DATABASES = {
             'options': '-c search_path=public'
         },
         'TEST': {
-            'NAME': 'test-badanie-satysfakcji-klientow',
+            'NAME': env.get_value('TEST_DATABASE_NAME', default='test-'+env.get_value('DATABASE_NAME')),
         }
     },
 }
