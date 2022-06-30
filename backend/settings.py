@@ -117,7 +117,7 @@ DATABASES = {
             'options': '-c search_path=public'
         },
         'TEST': {
-            'NAME': 'test-badanie-satysfakcji-klientow',
+            'NAME': env.get_value('TEST_DATABASE_NAME', default='test-'+env.get_value('DATABASE_NAME')),
         }
     },
 }
