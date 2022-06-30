@@ -342,8 +342,8 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
                     first_name=row['first_name'],
                     last_name=row['last_name']
                 )
-                already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
-                    new_interviewee_list.append(new_interviewee)
+                already_exists.append(new_interviewee) if Creator.objects.get(id=kwargs['creator_id']).interviewees.\
+                    filter(email=row['email']).count() else new_interviewee_list.append(new_interviewee)
         except pd.errors.EmptyDataError:
             return Response({'status': 'error', 'message': 'selected file is empty or is not .csv',
                              'hint': 'provide CSV with 3 cols with ";" separator eg. email;first_name;last_name'},
@@ -367,14 +367,20 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
                 return Response({'survey_id': survey_id, 'status': 'sending process started'},
                                 status=status.HTTP_200_OK)
 
-            Interviewee.objects.bulk_create(new_interviewee_list)
+            # Interviewee.objects.bulk_create(new_interviewee_list)
+            created_interviewees = Interviewee.objects.bulk_create(new_interviewee_list)
+            for created_interviewee in created_interviewees:
+                Creator.objects.get(id=kwargs['creator_id']).interviewees.add(created_interviewee)
             return Response(
                 {'status': 'respondents saved, sending process started',
                  'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
                  'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
                 status=status.HTTP_201_CREATED)
 
-        Interviewee.objects.bulk_create(new_interviewee_list)
+        created_interviewees = Interviewee.objects.bulk_create(new_interviewee_list)
+        for created_interviewee in created_interviewees:
+            Creator.objects.get(id=kwargs['creator_id']).interviewees.add(created_interviewee)
+
         return Response(
             {'status': 'respondents saved',
              'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
@@ -383,9 +389,7 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
     @action(detail=False, methods=['GET'])
     def download_csv(self, request, *args, **kwargs):
-        return csv_interviewees_file(queryset=Interviewee.objects.all())
-        # TODO queryset=Interviewee.objects.filter(creator=Creator.objects.get(id=kwargs['creator_id']))
-        # Interviewee model doesn't contain Creator
+        return csv_interviewees_file(queryset=Creator.objects.get(id=kwargs['creator_id']).interviewees.get_queryset())
 
 
 # for Preconditions
