@@ -4,12 +4,10 @@ from rest_framework.test import APITestCase
 from io import BytesIO
 from api.models import Interviewee, Creator, Survey
 from lorem_text import lorem
-from api.tests.predefined_objects import Predefined
 
 
 class CSVIntervieweeAPITest(APITestCase):
     def setUp(self):
-        self.creator = Predefined.create_creator()
         self.interviewee = Interviewee.objects.create(
             email='i@test.com',
             first_name='Krystian',
@@ -51,7 +49,6 @@ class CSVIntervieweeAPITest(APITestCase):
     def test_can_import_save_interviewees(self):
         url = f'{self.rev_csv_url}?save=true'
         file = BytesIO(self.client.get(self.rev_csv_url).content)
-
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -60,7 +57,6 @@ class CSVIntervieweeAPITest(APITestCase):
     def test_can_import_send_interviewees(self):
         url = f'{self.rev_csv_url}?send_survey={self.survey.id}'
         file = BytesIO(self.client.get(self.rev_csv_url).content)
-
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
@@ -69,7 +65,6 @@ class CSVIntervieweeAPITest(APITestCase):
     def test_can_import_save_send_interviewees(self):
         url = f'{self.rev_csv_url}?save=true&send_survey={self.survey.id}'
         file = BytesIO(self.client.get(self.rev_csv_url).content)
-
         response = self.client.post(url, {'file': file}, format='multipart')
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)

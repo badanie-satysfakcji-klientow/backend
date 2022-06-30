@@ -72,7 +72,6 @@ urlpatterns = [
 urlpatterns += [
     # TODO: route that
     # results
-
     path('api/questions/<uuid:question_id>/results',
          SurveyResultViewSet.as_view({'get': 'retrieve'}), name='question-results'),
     path('api/questions/<uuid:question_id>/results/more',
@@ -83,16 +82,4 @@ urlpatterns += [
     path('api/surveys/<uuid:survey_id>/results', SurveyResultViewSet.as_view({'get': 'list'}), name='results'),
     path('api/surveys/<uuid:survey_id>/results/raw',
          SurveyResultRawViewSet.as_view({'get': 'retrieve'}), name='results-raw'),
-]
-
-# non anonymous requires login
-
-# tokenized_urls (anonymous survey)
-urlpatterns += [
-    path('api/surveys/<str:survey_hash>/sections',
-         SectionViewSet.as_view({'get': 'anonymous_list'}), name='sections-anonymous'),
-    path('api/surveys/<str:survey_hash>/submit',
-         SubmissionViewSet.as_view({'post': 'anonymous_create'}), name='submit-anonymous'),
-    path('api/surveys/<str:survey_hash>',
-         SurveyViewSet.as_view({'get': 'anonymous_retrieve'}), name='surveys-anonymous'),  # should not be used
 ]
