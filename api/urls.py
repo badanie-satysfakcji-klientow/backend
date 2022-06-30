@@ -33,7 +33,7 @@ urlpatterns = [
 
     path('api/questions/<uuid:question_id>/answer', AnswerViewSet.as_view({'post': 'create'}), name='questions-answer'),
     path('api/questions/<uuid:question_id>/answer/<uuid:answer_id>',
-         AnswerViewSet.as_view({'patch': 'partial_update'}), name='questions-answer-update'),
+         AnswerViewSet.as_view({'patch': 'partial_update', 'delete': 'destroy'}), name='answer-uuid'),
     path('api/questions/<uuid:question_id>/results',
          SurveyResultViewSet.as_view({'get': 'retrieve'}), name='question-results'),
     path('api/questions/<uuid:question_id>/results/more',

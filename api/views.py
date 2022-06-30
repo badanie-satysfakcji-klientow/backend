@@ -131,6 +131,7 @@ class SubmissionViewSet(ModelViewSet):
 class AnswerViewSet(ModelViewSet):
     queryset = Answer.objects.all()
     serializer_class = AnswerSerializer
+    lookup_url_kwarg = 'answer_id'
 
     def create(self, request, *args, **kwargs):
         serializer = self.get_serializer(data=request.data)
