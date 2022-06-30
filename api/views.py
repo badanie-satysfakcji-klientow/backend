@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.db.models import F
 from rest_framework import status, serializers
 from rest_framework.response import Response
@@ -283,9 +284,7 @@ class IntervieweeViewSet(ModelViewSet):
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
-    serializer_class = IntervieweeSerializer
-    # TODO: think of changing this to create
-    # methods = ['create']
+    serializer_class = SurveySerializer
 
     def create(self, request, *args, **kwargs):
         """
@@ -294,16 +293,20 @@ class SendEmailViewSet(ModelViewSet):
         """
         selected_interviewees = request.query_params.get('selected')
         survey_id = kwargs['survey_id']
-        survey_title = Survey.objects.get(id=survey_id).title
 
         if not selected_interviewees:
             try:
                 email_list = request.data['interviewees']
-                send_my_mass_mail(survey_id, survey_title, email_list)
+                send_my_mass_mail(survey_id, email_list)
             except KeyError as e:
                 hint = "Provide correct email list eg. {'interviewees': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
                 return Response(
                     {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
+            except IntegrityError:
+                return Response({'survey_id': survey_id, 'status': 'error',
+                                 'message': 'Survey has already been sent to some users. '
+                                            'Provide only those users who have not been contacted yet.'},
+                                status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -314,12 +317,17 @@ class SendEmailViewSet(ModelViewSet):
             interviewees = request.data['interviewees']
             selected_interviewees_emails = \
                 [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
-            send_my_mass_mail(survey_id, survey_title, selected_interviewees_emails)
+            send_my_mass_mail(survey_id, selected_interviewees_emails)
         except KeyError as e:
             hint = "Provide correct interviewee id list eg.  " \
                    "{'interviewees': ['7d01d6b3-df2a-42fc-ab9e-ffe5f39a9685', '8e813c93-37a7-429f-926c-0ac092b30c79']}"
             return Response(
                 {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            return Response({'survey_id': survey_id, 'status': 'error',
+                             'message': 'Survey has already been sent to some users. '
+                                        'Provide only those users who have not been contacted yet.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -358,8 +366,8 @@ class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db 
                     first_name=row['first_name'],
                     last_name=row['last_name']
                 )
-                already_exists.append(new_interviewee) if Interviewee.objects.filter(email=row['email']).count() else \
-                    new_interviewee_list.append(new_interviewee)
+                already_exists.append(new_interviewee) if Creator.objects.get(id=kwargs['creator_id']).interviewees.\
+                    filter(email=row['email']).count() else new_interviewee_list.append(new_interviewee)
         except pd.errors.EmptyDataError:
             return Response({'status': 'error', 'message': 'selected file is empty or is not .csv',
                              'hint': 'provide CSV with 3 cols with ";" separator eg. email;first_name;last_name'},
@@ -372,9 +380,13 @@ class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db 
 
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
-            survey_title = Survey.objects.get(id=survey_id).title
             try:
-                send_my_mass_mail(survey_id, survey_title, email_list)
+                send_my_mass_mail(survey_id, email_list)
+            except IntegrityError:
+                return Response({'survey_id': survey_id, 'status': 'error',
+                                 'message': 'Survey has already been sent to some users. '
+                                            'Provide only those users who have not been contacted yet.'},
+                                status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error during sending email',
                                  'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -383,14 +395,20 @@ class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db 
                 return Response({'survey_id': survey_id, 'status': 'sending process started'},
                                 status=status.HTTP_200_OK)
 
-            Interviewee.objects.bulk_create(new_interviewee_list)
+            # Interviewee.objects.bulk_create(new_interviewee_list)
+            created_interviewees = Interviewee.objects.bulk_create(new_interviewee_list)
+            for created_interviewee in created_interviewees:
+                Creator.objects.get(id=kwargs['creator_id']).interviewees.add(created_interviewee)
             return Response(
                 {'status': 'respondents saved, sending process started',
                  'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
                  'already exists': IntervieweeSerializer(already_exists, many=True).data},  # maybe without existing?
                 status=status.HTTP_201_CREATED)
 
-        Interviewee.objects.bulk_create(new_interviewee_list)
+        created_interviewees = Interviewee.objects.bulk_create(new_interviewee_list)
+        for created_interviewee in created_interviewees:
+            Creator.objects.get(id=kwargs['creator_id']).interviewees.add(created_interviewee)
+
         return Response(
             {'status': 'respondents saved',
              'newly added': IntervieweeSerializer(new_interviewee_list, many=True).data,
@@ -398,9 +416,7 @@ class CSVIntervieweesViewSet(CustomModelViewSet):  # 1. add to db, 2. add to db 
             status=status.HTTP_201_CREATED)
 
     def list(self, request, *args, **kwargs):
-        return csv_interviewees_file(queryset=Interviewee.objects.all())
-        # TODO queryset=Interviewee.objects.filter(creator=Creator.objects.get(id=kwargs['creator_id']))
-        # Interviewee model doesn't contain Creator
+        return csv_interviewees_file(queryset=Creator.objects.get(id=kwargs['creator_id']).interviewees.get_queryset())
 
 
 class PreconditionViewSet(CustomModelViewSet):
