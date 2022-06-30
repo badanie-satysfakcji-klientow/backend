@@ -99,7 +99,7 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(Answer.objects.get(id=self.answer.id).content_character, 'new content')
 
     def test_can_get_answers_count(self):
-        url = reverse('submissions-get-count', kwargs={'survey_id': self.survey.id})
+        url = reverse('submission-list', kwargs={'survey_id': self.survey.id})
 
         for i in range(0, 10):
             Answer.objects.create(

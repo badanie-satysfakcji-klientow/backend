@@ -69,7 +69,7 @@ class SectionAPITest(APITestCase):
         }
 
     def test_can_create_section(self):
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, self.section_data)
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -90,7 +90,7 @@ class SectionAPITest(APITestCase):
     #     self.assertEqual(Section.objects.count(), 0)
 
     def test_can_create_separate_sections(self):
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
 
         # according to issue #74 we make 3 requests
         # same url
@@ -132,7 +132,7 @@ class SectionAPITest(APITestCase):
             survey_id=self.survey.id,
         )
 
-        url = reverse('sections', kwargs={'survey_id': self.survey.id})
+        url = reverse('section-list', kwargs={'survey_id': self.survey.id})
         response = self.client.post(url, {
             'start_item': no_question_item.id,
             'end_item': no_question_item.id,

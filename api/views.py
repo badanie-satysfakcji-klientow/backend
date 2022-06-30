@@ -52,6 +52,7 @@ class SurveyViewSet(ModelViewSet):
         except AttributeError as e:
             return Response({'status': 'error', 'message': e.args})
 
+    # TODO: move that to a separate viewset on refine
     @action(detail=False, methods=['GET'], name='Get surveys by creator')
     def retrieve_brief(self, request, *args, **kwargs):  # use prefetch_related
         surveys = Survey.objects.prefetch_related('items', 'items__questions').filter(creator_id=kwargs['creator_id'])
@@ -101,6 +102,7 @@ class ItemViewSet(CustomModelViewSet):
 class AnswersCountViewSet(CustomModelViewSet):
     serializer_class = AnswerQuestionCountSerializer
     methods = ['list']
+    lookup_url_kwarg = 'id'
 
     def get_queryset(self):
         submission_queryset = Submission.objects.filter(survey=self.kwargs['survey_id'])
@@ -210,7 +212,7 @@ class OptionViewSet(CustomModelViewSet):
         # update option by its id
         """
         partial = kwargs.pop('partial', False)
-        instance = Option.objects.get(id=kwargs['option_id'])
+        instance = Option.objects.get(id=kwargs['id'])
         serializer = self.get_serializer(instance, data=request.data, partial=partial)
         if serializer.is_valid():
             self.perform_update(serializer)
@@ -257,12 +259,11 @@ class IntervieweeViewSet(ModelViewSet):
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
-
+    serializer_class = IntervieweeSerializer
     # TODO: think of changing this to create
     # methods = ['create']
 
-    @action(detail=False, methods=['POST'])
-    def send(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         """
         send a mail with link to survey
         eg. http://127.0.0.1:4200/survey/survey_uuid
@@ -402,7 +403,7 @@ class PreconditionViewSet(CustomModelViewSet):
 
 class CreatorViewSet(ModelViewSet):
     serializer_class = CreatorSerializer
-    lookup_url_kwarg = 'creator_id'
+    lookup_url_kwarg = 'id'
     queryset = Creator.objects.all()
     hint = "Provide correct current_user id eg. " \
            "{'current_user': '8e813c93-37a7-429f-926c-0ac092b30c79'}"

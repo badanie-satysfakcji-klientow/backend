@@ -162,11 +162,11 @@ class ShowSurveyBriefInfoAPITest(APITestCase):
             Survey.objects.create(**survey_data)
 
     def test_can_get_survey_brief_info(self):
-        url = reverse('surveys-brief-info', kwargs={'creator_id': self.creator.id})
+        url = reverse('surveys-brief-list', kwargs={'creator_id': self.creator.id})
         response = self.client.get(url)
 
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        self.assertEqual(len(response.data['surveys']), 5)
+        self.assertEqual(len(response.data), 5)
 
 
 class SendSurveyAPITest(APITestCase):
