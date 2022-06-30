@@ -98,6 +98,13 @@ class AnswerAPITest(APITestCase):
         self.assertEqual(response.json()['content_character'], 'new content')
         self.assertEqual(Answer.objects.get(id=self.answer.id).content_character, 'new content')
 
+    def test_can_delete_answer(self):
+        url = reverse('answer-uuid', kwargs={'question_id': self.question.id, 'answer_id': self.answer.id})
+        response = self.client.delete(url)
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(Answer.objects.count(), 1)
+
     def test_can_get_answers_count(self):
         url = reverse('submission-list', kwargs={'survey_id': self.survey.id})
 
