@@ -1,3 +1,4 @@
+from django.db import IntegrityError
 from django.db.models import F
 from rest_framework import status, serializers
 from rest_framework.response import Response
@@ -269,25 +270,29 @@ class IntervieweeViewSet(ModelViewSet):
 
 class SendEmailViewSet(ModelViewSet):
     queryset = Interviewee.objects.all()
+    serializer_class = SurveySerializer
 
-    @action(detail=False, methods=['POST'])
-    def send(self, request, *args, **kwargs):
+    def create(self, request, *args, **kwargs):
         """
         send a mail with link to survey
         eg. http://127.0.0.1:4200/survey/survey_uuid
         """
         selected_interviewees = request.query_params.get('selected')
         survey_id = kwargs['survey_id']
-        survey_title = Survey.objects.get(id=survey_id).title
 
         if not selected_interviewees:
             try:
                 email_list = request.data['interviewees']
-                send_my_mass_mail(survey_id, survey_title, email_list)
+                send_my_mass_mail(survey_id, email_list)
             except KeyError as e:
                 hint = "Provide correct email list eg. {'interviewees': ['abc@gmail.com', 'kpz@pwr.edu.pl']}"
                 return Response(
                     {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
+            except IntegrityError:
+                return Response({'survey_id': survey_id, 'status': 'error',
+                                 'message': 'Survey has already been sent to some users. '
+                                            'Provide only those users who have not been contacted yet.'},
+                                status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                                 status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -298,12 +303,17 @@ class SendEmailViewSet(ModelViewSet):
             interviewees = request.data['interviewees']
             selected_interviewees_emails = \
                 [self.queryset.get(id=interviewee_id).email for interviewee_id in interviewees]
-            send_my_mass_mail(survey_id, survey_title, selected_interviewees_emails)
+            send_my_mass_mail(survey_id, selected_interviewees_emails)
         except KeyError as e:
             hint = "Provide correct interviewee id list eg.  " \
                    "{'interviewees': ['7d01d6b3-df2a-42fc-ab9e-ffe5f39a9685', '8e813c93-37a7-429f-926c-0ac092b30c79']}"
             return Response(
                 {'status': 'error', 'message': e.args, 'hint': hint}, status=status.HTTP_400_BAD_REQUEST)
+        except IntegrityError:
+            return Response({'survey_id': survey_id, 'status': 'error',
+                             'message': 'Survey has already been sent to some users. '
+                                        'Provide only those users who have not been contacted yet.'},
+                            status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             return Response({'survey_id': survey_id, 'status': 'error', 'message': e.args},
                             status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -356,9 +366,13 @@ class CSVIntervieweesViewSet(ModelViewSet):  # 1. add to db, 2. add to db and se
 
         if survey_id:
             email_list = self.get_email_list(already_exists, new_interviewee_list)
-            survey_title = Survey.objects.get(id=survey_id).title
             try:
-                send_my_mass_mail(survey_id, survey_title, email_list)
+                send_my_mass_mail(survey_id, email_list)
+            except IntegrityError:
+                return Response({'survey_id': survey_id, 'status': 'error',
+                                 'message': 'Survey has already been sent to some users. '
+                                            'Provide only those users who have not been contacted yet.'},
+                                status=status.HTTP_400_BAD_REQUEST)
             except Exception as e:
                 return Response({'survey_id': survey_id, 'status': 'error during sending email',
                                  'message': e.args}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
